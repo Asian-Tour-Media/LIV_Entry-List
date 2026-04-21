@@ -1,0 +1,2511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIV Golf Player Identifier</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+:root{
+  --bg:#08090c;--surf:#0f1117;--surf2:#161820;--surf3:#1c1f2a;
+  --bdr:rgba(255,255,255,0.07);--bdr2:rgba(255,255,255,0.13);
+  --gold:#c9a84c;--gold2:#e2be76;--gold3:#f0d898;
+  --gdim:rgba(201,168,76,0.10);
+  --red:#e05555;--green:#4ec87a;
+  --tx:#eef0f4;--tx2:#8a93a6;--tx3:#484f60;
+  --r:10px;--rl:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+.topbar{background:var(--surf);border-bottom:1px solid var(--bdr);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:62px;position:sticky;top:0;z-index:100}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-badge{width:38px;height:38px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#06070a;font-family:Georgia,serif}
+.logo-name{font-size:15px;font-weight:700;color:var(--gold2);font-family:Georgia,serif}
+.logo-sub{font-size:10px;color:var(--tx3);letter-spacing:1.8px;text-transform:uppercase;margin-top:1px}
+.admin-pill{background:none;border:1px solid var(--bdr2);color:var(--tx3);padding:6px 14px;border-radius:20px;cursor:pointer;font-size:12px;transition:all .2s;display:flex;align-items:center;gap:5px}
+.admin-pill:hover{border-color:var(--gold);color:var(--gold)}
+.admin-pill.on{border-color:var(--gold);color:var(--gold);background:var(--gdim)}
+.nav{background:var(--surf);border-bottom:1px solid var(--bdr);padding:0 2rem;display:flex;gap:4px}
+.tab{padding:13px 18px;font-size:13px;color:var(--tx3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none;white-space:nowrap}
+.tab:hover{color:var(--tx2)}
+.tab.on{color:var(--gold2);border-bottom-color:var(--gold)}
+.tab.admin-tab{display:none}
+.tab.admin-tab.show{display:block}
+.main{padding:2rem;max-width:1140px;margin:0 auto}
+.panel{display:none}
+.panel.on{display:block}
+.card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--rl);padding:1.5rem;margin-bottom:1.5rem}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;gap:1rem;flex-wrap:wrap}
+.card-title{font-size:14px;font-weight:600;color:var(--tx);display:flex;align-items:center;gap:8px}
+.dot{width:7px;height:7px;background:var(--gold);border-radius:50%;flex-shrink:0}
+
+/* Upload zone */
+.drop-zone{border:2px dashed var(--bdr2);border-radius:var(--rl);padding:2.5rem 2rem;text-align:center;cursor:pointer;transition:all .3s;background:var(--surf2);position:relative}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--gold);background:var(--gdim)}
+.drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:34px;margin-bottom:.6rem;opacity:.6}
+.drop-title{font-size:15px;color:var(--tx);margin-bottom:5px;font-weight:500}
+.drop-sub{font-size:12px;color:var(--tx2);line-height:1.7}
+.file-pill{display:flex;align-items:center;justify-content:space-between;margin-top:1rem;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;font-size:13px;color:var(--tx2)}
+
+/* OWGR upload zone */
+.owgr-upload{border:2px dashed rgba(78,200,122,.25);border-radius:var(--r);padding:1rem 1.25rem;text-align:center;cursor:pointer;transition:all .3s;background:rgba(78,200,122,.04);position:relative;display:flex;align-items:center;justify-content:center;gap:.75rem}
+.owgr-upload:hover,.owgr-upload.drag{border-color:var(--green);background:rgba(78,200,122,.09)}
+#isWinsDrop:hover,#isWinsDrop.drag{border-color:#a78bfa !important;background:rgba(167,139,250,.09) !important}
+#startimesDrop:hover,#startimesDrop.drag{border-color:#38bdf8 !important;background:rgba(56,189,248,.08) !important}
+.group-card{background:var(--surf);border:1px solid var(--bdr);border-radius:var(--r);margin-bottom:.75rem;overflow:hidden}
+.group-card.has-liv{border-color:rgba(201,168,76,.4);background:rgba(201,168,76,.03)}
+.group-hd{display:flex;align-items:center;gap:1rem;padding:.7rem 1rem;background:var(--surf2);border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.group-num{font-size:18px;font-weight:700;color:var(--gold2);font-family:Georgia,serif;min-width:28px}
+.group-time{font-size:12px;color:var(--tx3);font-family:sans-serif}
+.group-tee{font-size:11px;color:var(--tx3);background:var(--surf3);border:1px solid var(--bdr2);border-radius:4px;padding:2px 7px;font-family:sans-serif}
+.group-players{padding:.5rem 1rem}
+.group-player-row{display:flex;align-items:center;gap:.75rem;padding:.45rem 0;border-bottom:1px solid var(--bdr);flex-wrap:wrap}
+.group-player-row:last-child{border-bottom:none}
+.player-name-cell{font-size:13px;color:var(--tx);flex:1;min-width:140px}
+.player-name-cell.is-liv{color:var(--gold2);font-weight:600}
+.player-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.owgr-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.owgr-upload-text{font-size:12px;color:var(--tx2);text-align:left}
+.owgr-upload-text strong{color:var(--tx)}
+
+/* OWGR status pill */
+.owgr-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surf3);border:1px solid var(--bdr);color:var(--tx3)}
+.owgr-pill.loaded{background:rgba(78,200,122,.1);border-color:rgba(78,200,122,.3);color:#6ee09a}
+.owgr-pill-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat{background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:1.2rem;text-align:center}
+.stat-n{font-size:28px;font-weight:700;color:var(--gold2);font-family:Georgia,serif;line-height:1}
+.stat-l{font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:1.2px;margin-top:6px}
+.stat.hi{border-color:var(--gold);background:var(--gdim)}
+.stat.hi .stat-n{color:var(--gold3)}
+.stat.green{border-color:rgba(78,200,122,.3);background:rgba(78,200,122,.06)}
+.stat.green .stat-n{color:#6ee09a}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--surf3);color:var(--tx3);padding:9px 14px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px;font-weight:600;border-bottom:1px solid var(--bdr);white-space:nowrap}
+th.rank-col{text-align:right}
+td{padding:9px 14px;border-bottom:1px solid var(--bdr);color:var(--tx);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surf2)}
+.rn{color:var(--tx3);font-size:11px;width:36px}
+
+/* Rank display */
+.rank-cell{text-align:right;font-size:12px;font-weight:700;white-space:nowrap}
+.r-top10{color:#6ee09a}
+.r-top50{color:var(--gold2)}
+.r-top100{color:var(--tx)}
+.r-rest{color:var(--tx2)}
+.r-none{color:var(--tx3);font-weight:400;font-size:11px}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.3px;white-space:nowrap}
+.b-gold{background:var(--gdim);color:var(--gold2);border:1px solid rgba(201,168,76,.3)}
+.b-top{background:rgba(78,200,122,.1);color:#6ee09a;border:1px solid rgba(78,200,122,.25)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all .2s;white-space:nowrap}
+.btn-gold{background:var(--gold);color:#07080b}
+.btn-gold:hover{background:var(--gold2)}
+.btn-ghost{background:none;border:1px solid var(--bdr2);color:var(--tx2)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:rgba(224,85,85,.12);border:1px solid rgba(224,85,85,.25);color:var(--red)}
+.btn-danger:hover{background:rgba(224,85,85,.22)}
+.btn-warn{background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.3);color:var(--gold2)}
+.btn-warn:hover{background:rgba(201,168,76,.22)}
+.btn-sm{padding:4px 9px;font-size:11px}
+.btns{display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+
+/* Top-N filter */
+.filter-bar{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;padding:10px 14px;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px}
+.filter-bar label{font-size:12px;color:var(--tx2)}
+.topn-sel{background:var(--surf3);border:1px solid var(--bdr2);color:var(--tx);padding:5px 10px;border-radius:8px;font-size:12px;outline:none;cursor:pointer;transition:border-color .2s}
+.topn-sel:focus{border-color:var(--gold)}
+.filter-count{font-size:11px;color:var(--tx3);margin-left:auto}
+
+/* Forms */
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;color:var(--tx2);letter-spacing:0.5px;text-transform:uppercase}
+.fg input{background:var(--surf3);border:1px solid var(--bdr2);color:var(--tx);padding:9px 11px;border-radius:8px;font-size:13px;outline:none;transition:border-color .2s;width:100%}
+.fg input:focus{border-color:var(--gold)}
+.fg input::placeholder{color:var(--tx3)}
+
+/* Search */
+.srch-wrap{position:relative;margin-bottom:1rem}
+.srch-ic{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--tx3);font-size:13px;pointer-events:none}
+.srch{width:100%;background:var(--surf2);border:1px solid var(--bdr);color:var(--tx);padding:9px 11px 9px 33px;border-radius:8px;font-size:13px;outline:none;transition:border-color .2s}
+.srch:focus{border-color:var(--gold)}
+.srch::placeholder{color:var(--tx3)}
+
+/* Modals */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.80);z-index:500;align-items:center;justify-content:center;padding:1rem}
+.overlay.open{display:flex}
+.modal{background:var(--surf);border:1px solid var(--bdr2);border-radius:var(--rl);padding:1.75rem;width:min(440px,100%);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:17px;color:var(--gold2);margin-bottom:.35rem;font-family:Georgia,serif}
+.modal-sub{font-size:12px;color:var(--tx2);margin-bottom:1.5rem;line-height:1.6}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:1.5rem}
+.pw-box{width:100%;background:var(--surf3);border:1px solid var(--bdr2);color:var(--tx);padding:12px;border-radius:8px;font-size:16px;text-align:center;letter-spacing:3px;outline:none;transition:border-color .2s}
+.pw-box:focus{border-color:var(--gold)}
+.err-msg{color:var(--red);font-size:11px;margin-top:6px;display:none}
+
+/* Hero */
+.match-hero{background:var(--surf2);border:1px solid rgba(201,168,76,.35);border-radius:var(--rl);padding:1.5rem 1.75rem;margin-bottom:1.5rem;position:relative;overflow:hidden}
+.match-hero::after{content:'LIV';position:absolute;right:1.5rem;top:50%;transform:translateY(-50%);font-size:90px;font-weight:900;color:rgba(201,168,76,.05);font-family:Georgia,serif;pointer-events:none;line-height:1}
+.hero-title{font-size:20px;color:var(--gold2);font-family:Georgia,serif;margin-bottom:4px}
+.hero-sub{font-size:12px;color:var(--tx2)}
+
+/* Chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem}
+.chip{padding:4px 11px;border-radius:20px;font-size:11px;background:var(--surf3);color:var(--tx2);border:1px solid var(--bdr);cursor:pointer;transition:all .2s;user-select:none}
+.chip:hover,.chip.on{background:var(--gdim);color:var(--gold2);border-color:rgba(201,168,76,.35)}
+
+/* Info box */
+.info-box{background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gold2);margin-bottom:1rem;line-height:1.6}
+
+/* Danger zone */
+.danger-zone{background:rgba(224,85,85,.06);border:1px solid rgba(224,85,85,.2);border-radius:var(--r);padding:1.25rem;margin-top:1rem}
+.danger-zone-title{font-size:12px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:.5rem}
+.danger-zone p{font-size:12px;color:var(--tx2);margin-bottom:.9rem;line-height:1.6}
+
+/* Toast */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--surf);border:1px solid var(--bdr2);border-radius:9px;padding:10px 16px;font-size:12px;color:var(--tx);z-index:9999;display:none;align-items:center;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.toast.on{display:flex}
+
+.empty{text-align:center;padding:3rem 1rem;color:var(--tx3)}
+.empty-ic{font-size:32px;margin-bottom:.75rem;opacity:.5}
+.empty p{font-size:13px}
+
+@media(max-width:640px){
+  .main{padding:1rem}
+  .topbar,.nav{padding:0 1rem}
+  .frow{grid-template-columns:1fr}
+  .tab{padding:11px 12px;font-size:12px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-badge">LIV</div>
+    <div>
+      <div class="logo-name">Golf Player Identifier</div>
+      <div class="logo-sub">Entry List Matcher</div>
+    </div>
+  </div>
+  <button class="admin-pill" id="adminBtn" onclick="showLogin()">&#9878; Admin</button>
+</div>
+
+<div class="nav">
+  <div class="tab on" data-tab="upload" onclick="switchTab('upload')">&#128196; Upload Entry List</div>
+  <div class="tab" data-tab="results" onclick="switchTab('results')">&#127919; Match Results</div>
+  <div class="tab" data-tab="rankings" onclick="switchTab('rankings')">&#127358; Full Field Rankings</div>
+  <div class="tab" data-tab="startimes" onclick="switchTab('startimes')">&#9201; Starting Times</div>
+  <div class="tab admin-tab" id="rosterTab" data-tab="roster" onclick="switchTab('roster')">&#9878; LIV Roster</div>
+  <div class="tab admin-tab" id="aliasTab" data-tab="aliases" onclick="switchTab('aliases')">&#128279; Name Aliases</div>
+</div>
+
+<div class="main">
+
+  <!-- ===== UPLOAD ===== -->
+  <div class="panel on" id="panel-upload">
+
+    <!-- Entry list upload -->
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><span class="dot"></span>Upload Tournament Entry List</div>
+        <span style="font-size:11px;color:var(--tx3)">Excel (.xlsx / .xls) &nbsp;&middot;&nbsp; PDF</span>
+      </div>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.pdf" onchange="handleFile(event)">
+        <div class="drop-icon">&#128196;</div>
+        <div class="drop-title">Drop your entry list here or click to browse</div>
+        <div class="drop-sub">Names read from column labelled <strong>Player</strong> or <strong>Name</strong><br>Blank rows and category headers are skipped automatically</div>
+      </div>
+      <div class="file-pill" id="filePill" style="display:none">
+        <span id="fileName">&#8212;</span>
+        <button class="btn btn-ghost btn-sm" onclick="clearFile()">&#10005; Clear</button>
+      </div>
+    </div>
+
+    <!-- OWGR upload -->
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>OWGR World Rankings <span style="font-size:11px;color:var(--tx3);font-weight:400;margin-left:4px">(optional)</span></div>
+        <div class="owgr-pill" id="owgrPill"><span class="owgr-pill-dot"></span><span id="owgrPillText">Not loaded</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.75;margin-bottom:.9rem">
+        Visit <a href="https://www.owgr.com/current-world-ranking" target="_blank" style="color:var(--gold2);text-decoration:none;font-weight:600">owgr.com/current-world-ranking</a>, click the <strong style="color:var(--tx)">"Download ranking"</strong> button and drop the file below. Rankings will be shown for every player in the field and you can filter by Top 10 / 20 / 50 / 100.
+      </div>
+      <div class="owgr-upload" id="owgrDrop">
+        <input type="file" id="owgrInput" accept=".xlsx,.xls,.csv" onchange="handleOWGR(event)">
+        <span style="font-size:20px;opacity:.7">&#127358;</span>
+        <div class="owgr-upload-text">
+          <strong>Drop OWGR download here</strong><br>
+          Accepts .xlsx, .xls or .csv
+        </div>
+        <button class="btn btn-ghost btn-sm" id="owgrClearBtn" style="display:none;position:relative;z-index:2" onclick="clearOWGR(event)">&#10005; Clear</button>
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="card" id="previewCard" style="display:none">
+      <div class="card-hd">
+        <div class="card-title">
+          <span class="dot"></span>Detected Players
+          <span id="detectedCount" style="background:var(--surf3);border-radius:20px;padding:2px 9px;font-size:11px;color:var(--tx2);font-weight:400;margin-left:4px"></span>
+        </div>
+        <button class="btn btn-gold" onclick="runMatch()">Match Against LIV Roster &#8594;</button>
+      </div>
+      <div class="info-box" id="rosterWarning" style="display:none">
+        &#9888;&nbsp; The LIV Roster is empty. Please ask the admin to load the roster before matching.
+      </div>
+      <div class="srch-wrap">
+        <span class="srch-ic">&#128269;</span>
+        <input type="text" class="srch" placeholder="Filter detected players..." oninput="filterPreview(this.value)">
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Player Name</th><th class="rank-col" id="previewRankHead" style="display:none">OWGR</th></tr></thead>
+          <tbody id="previewBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RESULTS ===== -->
+  <div class="panel" id="panel-results">
+    <div id="noResultsMsg" class="empty">
+      <div class="empty-ic">&#127919;</div>
+      <p>No results yet &mdash; upload an entry list and click Match.</p>
+    </div>
+    <div id="resultsWrap" style="display:none">
+      <div class="match-hero">
+        <div class="hero-title" id="heroTitle">Match Results</div>
+        <div class="hero-sub" id="heroSub"></div>
+      </div>
+      <div class="stats" id="statsRow"></div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title"><span class="dot"></span>LIV Players in This Field</div>
+          <div class="btns">
+            <button class="btn btn-ghost" onclick="exportXLSX()">&#128190; Excel</button>
+            <button class="btn btn-ghost" onclick="exportPDF()">&#128196; PDF</button>
+            <button class="btn btn-ghost" onclick="copyNames()">&#128203; Copy Names</button>
+          </div>
+        </div>
+        <div class="chips" id="teamChips"></div>
+        <div class="chips" id="champChips"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>LIV Player</th><th>Team</th>
+                <th class="rank-col" id="livRankHead" style="display:none">OWGR</th>
+                <th title="International Series career wins">IS Wins</th>
+              </tr>
+            </thead>
+            <tbody id="matchBody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="noMatchMsg" style="display:none;padding:1.5rem">
+          <p>No LIV players found in this entry list.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title" style="color:var(--tx2)">Non-LIV Players</div>
+          <span id="nonLivCount" style="font-size:11px;color:var(--tx3)"></span>
+        </div>
+        <div class="srch-wrap">
+          <span class="srch-ic">&#128269;</span>
+          <input type="text" class="srch" placeholder="Search non-LIV players..." oninput="filterNonLiv(this.value)">
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Player Name</th>
+                <th class="rank-col" id="nonLivRankHead" style="display:none">OWGR</th>
+                <th title="International Series career wins">IS Wins</th>
+              </tr>
+            </thead>
+            <tbody id="nonLivBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FULL FIELD RANKINGS ===== -->
+  <div class="panel" id="panel-rankings">
+    <div id="noRankingsMsg" class="empty">
+      <div class="empty-ic">&#127358;</div>
+      <p>Run a match first, then load OWGR rankings to see the full field sorted by world ranking.</p>
+    </div>
+    <div id="rankingsWrap" style="display:none">
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title"><span class="dot" style="background:var(--green)"></span>Full Field — Sorted by World Ranking</div>
+          <div class="btns">
+            <button class="btn btn-ghost" onclick="exportRankingsXLSX()">&#128190; Excel</button>
+            <button class="btn btn-ghost" onclick="exportRankingsPDF()">&#128196; PDF</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <label>Show top</label>
+          <select class="topn-sel" id="topNSel" onchange="renderRankingsTable()">
+            <option value="0">All players</option>
+            <option value="10">Top 10</option>
+            <option value="20" selected>Top 20</option>
+            <option value="50">Top 50</option>
+            <option value="100">Top 100</option>
+          </select>
+          <label style="margin-left:.5rem">Filter</label>
+          <select class="topn-sel" id="rankFilterSel" onchange="renderRankingsTable()">
+            <option value="all">All players</option>
+            <option value="liv">LIV only</option>
+            <option value="nonliv">Non-LIV only</option>
+            <option value="champions">IS Champions only</option>
+          </select>
+          <span class="filter-count" id="rankingCount"></span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>OWGR</th><th>Player</th><th>LIV?</th><th title="International Series career wins">IS Wins</th></tr></thead>
+            <tbody id="rankingsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ROSTER (admin) ===== -->
+  <div class="panel" id="panel-roster">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title">
+          <span class="dot"></span>LIV Roster
+          <span id="rosterCountBadge" style="background:var(--gdim);color:var(--gold2);border:1px solid rgba(201,168,76,.3);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:400;margin-left:4px"></span>
+        </div>
+        <div class="btns">
+          <button class="btn btn-gold" onclick="openAddPlayer(-1)">&#43; Add Player</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('rosterImportInput').click()">&#128196; Import Excel</button>
+          <input type="file" id="rosterImportInput" accept=".xlsx,.xls" style="display:none" onchange="importRoster(event)">
+          <button class="btn btn-ghost" onclick="downloadRoster()">&#8659; Download</button>
+        </div>
+      </div>
+      <div class="info-box">
+        &#128161;&nbsp; <strong>Importing replaces the current roster entirely.</strong> Use "Clear Roster" below before importing a new season file so old names don't carry over.
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+        <div class="srch-wrap" style="flex:1;margin-bottom:0;min-width:180px">
+          <span class="srch-ic">&#128269;</span>
+          <input type="text" class="srch" id="rosterSearch" placeholder="Search by name or team..." oninput="renderRoster()">
+        </div>
+        <div class="chips" id="rosterTeamChips" style="margin:0"></div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Player Name</th><th>Team</th><th style="width:120px">Actions</th></tr></thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+        <div class="empty" id="rosterEmpty" style="display:none;padding:2rem">
+          <div class="empty-ic">&#128100;</div>
+          <p>Roster is empty. Import an Excel file or add players manually.</p>
+        </div>
+      </div>
+    </div>
+    <div class="danger-zone">
+      <div class="danger-zone-title">&#9888; Danger Zone</div>
+      <p>Clearing the roster removes all players. Use this before importing a new season roster so old names don't carry over.</p>
+      <button class="btn btn-danger" onclick="openClearConfirm()">&#128465; Clear Entire Roster</button>
+    </div>
+
+    <!-- IS Winners — admin only -->
+    <div class="card" style="margin-top:1.5rem;border-color:rgba(167,139,250,.25)">
+      <div class="card-hd">
+        <div class="card-title"><span class="dot" style="background:#a78bfa"></span>International Series Winners</div>
+        <div class="owgr-pill" id="isWinsPill"><span class="owgr-pill-dot"></span><span id="isWinsPillText">Using built-in data</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.75;margin-bottom:1rem">
+        After each IS tournament, add the new winner to your CSV and re-upload. Format: two columns — <strong style="color:var(--tx)">Player Name</strong> and <strong style="color:var(--tx)">Tournament</strong>, one row per win. Data is saved automatically and persists for all users.
+      </div>
+      <div class="btns" style="margin-bottom:.75rem">
+        <button class="btn btn-gold" onclick="document.getElementById('isWinsInput').click()">&#127942; Upload IS Winners CSV / Excel</button>
+        <button class="btn btn-ghost" onclick="downloadISTemplate(event)">&#8659; Download current CSV</button>
+        <button class="btn btn-danger btn-sm" id="isWinsClearBtn" style="display:none" onclick="clearISWins(event)">&#10005; Reset to built-in</button>
+      </div>
+      <input type="file" id="isWinsInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleISWins(event)">
+      <div id="isWinsDropZone" style="border:2px dashed rgba(167,139,250,.3);border-radius:8px;padding:.9rem 1.25rem;font-size:12px;color:var(--tx3);text-align:center">
+        Or drag &amp; drop your file anywhere in this box
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== STARTING TIMES ===== -->
+  <div class="panel" id="panel-startimes">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><span class="dot" style="background:#38bdf8"></span>Starting Times PDF</div>
+        <div class="owgr-pill" id="startimesPill"><span class="owgr-pill-dot"></span><span id="startimesPillText">No file loaded</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.75;margin-bottom:.9rem">
+        Upload the round's Starting Times PDF from the Asian Tour / International Series. The app will parse the groups, identify LIV players in each group, and flag International Series champions.
+      </div>
+      <div class="owgr-upload" id="startimesDrop" style="border-color:rgba(56,189,248,.3);background:rgba(56,189,248,.04)">
+        <input type="file" id="startimesInput" accept=".pdf" onchange="handleStartimes(event)">
+        <span style="font-size:20px;opacity:.7">&#128196;</span>
+        <div class="owgr-upload-text">
+          <strong>Drop Starting Times PDF here</strong><br>
+          Asian Tour / International Series format
+        </div>
+        <button class="btn btn-ghost btn-sm" id="startimesClearBtn" style="display:none;position:relative;z-index:2" onclick="clearStartimes(event)">&#10005; Clear</button>
+      </div>
+    </div>
+
+    <div id="startimesEmpty" class="empty" style="display:none">
+      <div class="empty-ic">&#9201;</div>
+      <p>No groups found — check the PDF is a Starting Times sheet.</p>
+    </div>
+
+    <div id="startimesContent" style="display:none">
+      <!-- Summary stats -->
+      <div class="stats" id="startimesStats"></div>
+
+      <!-- Filter bar -->
+      <div class="card" style="padding:1rem 1.5rem">
+        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+          <div class="srch-wrap" style="flex:1;margin-bottom:0;min-width:180px">
+            <span class="srch-ic">&#128269;</span>
+            <input type="text" class="srch" id="startimesSearch" placeholder="Search player or group..." oninput="renderStartimes()">
+          </div>
+          <div class="chips" id="startimesFilterChips" style="margin:0">
+            <div class="chip on" data-sf="all"   onclick="setStartimesFilter('all',this)">All Groups</div>
+            <div class="chip"    data-sf="liv"   onclick="setStartimesFilter('liv',this)">&#9733; LIV Groups</div>
+            <div class="chip"    data-sf="champ" onclick="setStartimesFilter('champ',this)">&#127942; IS Champions</div>
+          </div>
+          <div class="btns">
+            <button class="btn btn-ghost" onclick="exportStartimesXLSX()">&#128190; Excel</button>
+            <button class="btn btn-ghost" onclick="exportStartimesPDF()">&#128196; PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Groups table -->
+      <div id="startimesGroups"></div>
+    </div>
+  </div>
+
+  <!-- ===== ALIASES (admin) ===== -->
+  <div class="panel" id="panel-aliases">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><span class="dot" style="background:#a78bfa"></span>Name Aliases</div>
+        <button class="btn btn-gold" onclick="openAddAlias(-1)">&#43; Add Alias</button>
+      </div>
+      <div class="info-box" style="background:rgba(167,139,250,.07);border-color:rgba(167,139,250,.25);color:#c4b5fd">
+        &#128279;&nbsp; When a player's name in the entry list differs from their name on the OWGR, add an alias here. The fuzzy matcher handles most cases automatically — use aliases only for names that still show <strong>—</strong> after loading OWGR rankings. A <strong>~</strong> next to a rank means it was resolved by fuzzy matching.
+      </div>
+      <div class="srch-wrap">
+        <span class="srch-ic">&#128269;</span>
+        <input type="text" class="srch" id="aliasSearch" placeholder="Search aliases..." oninput="renderAliases()">
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Entry List Name</th><th>OWGR Name</th><th style="width:110px">Actions</th></tr></thead>
+          <tbody id="aliasBody"></tbody>
+        </table>
+        <div class="empty" id="aliasEmpty" style="display:none;padding:2rem">
+          <div class="empty-ic">&#128279;</div>
+          <p>No aliases defined. The fuzzy matcher handles most name differences automatically.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- LOGIN -->
+<div class="overlay" id="loginModal">
+  <div class="modal">
+    <div class="modal-title">&#9878;&nbsp; Admin Login</div>
+    <div class="modal-sub">Enter the admin password to manage the LIV Roster. Team members uploading entry lists do not need to log in.</div>
+    <input type="password" class="pw-box" id="pwInput" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="err-msg" id="pwErr">Incorrect password. Please try again.</div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('loginModal')">Cancel</button>
+      <button class="btn btn-gold" onclick="doLogin()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT PLAYER -->
+<div class="overlay" id="playerModal">
+  <div class="modal">
+    <div class="modal-title" id="playerModalTitle">Add Player</div>
+    <div class="modal-sub">Name must match exactly how it appears in tournament entry lists.</div>
+    <div class="frow">
+      <div class="fg"><label>First Name</label><input type="text" id="pFirst" placeholder="e.g. Dustin"></div>
+      <div class="fg"><label>Last Name</label><input type="text" id="pLast" placeholder="e.g. Johnson"></div>
+    </div>
+    <div class="fg" style="margin-bottom:.9rem"><label>Team</label><input type="text" id="pTeam" placeholder="e.g. 4Aces GC"></div>
+    <input type="hidden" id="pIdx" value="-1">
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('playerModal')">Cancel</button>
+      <button class="btn btn-gold" onclick="savePlayer()">Save Player</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE PLAYER -->
+<div class="overlay" id="delModal">
+  <div class="modal">
+    <div class="modal-title">Remove Player?</div>
+    <div class="modal-sub" id="delModalSub"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('delModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Remove</button>
+    </div>
+    <input type="hidden" id="delIdx">
+  </div>
+</div>
+
+<!-- CLEAR ROSTER -->
+<div class="overlay" id="clearModal">
+  <div class="modal">
+    <div class="modal-title">Clear Entire Roster?</div>
+    <div class="modal-sub">This will remove all <span id="clearCount"></span> players. You will need to re-import or manually re-add them.</div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('clearModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmClear()">Yes, Clear Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT REPLACE CONFIRM -->
+<div class="overlay" id="importConfirmModal">
+  <div class="modal">
+    <div class="modal-title">Replace Current Roster?</div>
+    <div class="modal-sub">This will clear the existing <span id="importOldCount"></span> players and replace them with <span id="importNewCount"></span> players from your file.</div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('importConfirmModal')">Cancel</button>
+      <button class="btn btn-warn" onclick="confirmImport()">Replace Roster</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT ALIAS -->
+<div class="overlay" id="aliasModal">
+  <div class="modal">
+    <div class="modal-title" id="aliasModalTitle">Add Name Alias</div>
+    <div class="modal-sub">Map how a player's name appears in the <strong>entry list</strong> to their exact name on the <strong>OWGR</strong>.</div>
+    <div class="fg" style="margin-bottom:.9rem">
+      <label>Entry List Name (as it appears in your upload)</label>
+      <input type="text" id="aEntry" placeholder="e.g. Josele Ballester">
+    </div>
+    <div class="fg" style="margin-bottom:.9rem">
+      <label>OWGR Name (exact spelling from OWGR)</label>
+      <input type="text" id="aOwgr" placeholder="e.g. Jose Luis Ballester">
+    </div>
+    <input type="hidden" id="aKey" value="">
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('aliasModal')">Cancel</button>
+      <button class="btn btn-gold" onclick="saveAlias()">Save Alias</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// ROSTER — 2026 season with updated teams
+// ============================================================
+let roster = [
+  {name:"Dustin Johnson",team:"4Aces GC"},
+  {name:"Thomas Detry",team:"4Aces GC"},
+  {name:"Anthony Kim",team:"4Aces GC"},
+  {name:"Thomas Pieters",team:"4Aces GC"},
+  {name:"Jon Rahm",team:"Legion XIII"},
+  {name:"Tyrrell Hatton",team:"Legion XIII"},
+  {name:"Caleb Surratt",team:"Legion XIII"},
+  {name:"Tom McKibbin",team:"Legion XIII"},
+  {name:"Cameron Smith",team:"Ripper GC"},
+  {name:"Marc Leishman",team:"Ripper GC"},
+  {name:"Elvis Smylie",team:"Ripper GC"},
+  {name:"Lucas Herbert",team:"Ripper GC"},
+  {name:"Joaquin Niemann",team:"Torque GC"},
+  {name:"Carlos Ortiz",team:"Torque GC"},
+  {name:"Abraham Ancer",team:"Torque GC"},
+  {name:"Sebastian Munoz",team:"Torque GC"},
+  {name:"Bubba Watson",team:"RangeGoats GC"},
+  {name:"Matthew Wolff",team:"RangeGoats GC"},
+  {name:"Peter Uihlein",team:"RangeGoats GC"},
+  {name:"Ben Campbell",team:"RangeGoats GC"},
+  {name:"Talor Gooch",team:"Smash GC"},
+  {name:"Jason Kokrak",team:"Smash GC"},
+  {name:"Graeme McDowell",team:"Smash GC"},
+  {name:"Harold Varner III",team:"Smash GC"},
+  {name:"Louis Oosthuizen",team:"Southern Guards GC"},
+  {name:"Charl Schwartzel",team:"Southern Guards GC"},
+  {name:"Dean Burmester",team:"Southern Guards GC"},
+  {name:"Branden Grace",team:"Southern Guards GC"},
+  {name:"Phil Mickelson",team:"HyFlyers GC"},
+  {name:"Brendan Steele",team:"HyFlyers GC"},
+  {name:"Cameron Tringale",team:"HyFlyers GC"},
+  {name:"Michael La Sasso",team:"HyFlyers GC"},
+  {name:"Byeong Hun An",team:"Korean Golf Club"},
+  {name:"Minkyu Kim",team:"Korean Golf Club"},
+  {name:"Danny Lee",team:"Korean Golf Club"},
+  {name:"Younghan Song",team:"Korean Golf Club"},
+  {name:"Bryson DeChambeau",team:"Crushers GC"},
+  {name:"Paul Casey",team:"Crushers GC"},
+  {name:"Charles Howell III",team:"Crushers GC"},
+  {name:"Anirban Lahiri",team:"Crushers GC"},
+  {name:"Lee Westwood",team:"Majesticks Golf Club"},
+  {name:"Ian Poulter",team:"Majesticks Golf Club"},
+  {name:"Laurie Canter",team:"Majesticks Golf Club"},
+  {name:"Sam Horsfield",team:"Majesticks Golf Club"},
+  {name:"Sergio Garcia",team:"Fireballs GC"},
+  {name:"Josele Ballester",team:"Fireballs GC"},
+  {name:"David Puig",team:"Fireballs GC"},
+  {name:"Luis Masaveu",team:"Fireballs GC"},
+  {name:"Martin Kaymer",team:"Cleeks Golf Club"},
+  {name:"Richard Bland",team:"Cleeks Golf Club"},
+  {name:"Adrian Meronk",team:"Cleeks Golf Club"},
+  {name:"Victor Perez",team:"Cleeks Golf Club"},
+  {name:"Richard T. Lee",team:"Wild Card"},
+  {name:"Bjorn Hellgren",team:"Wild Card"},
+  {name:"Scott Vincent",team:"Wild Card"},
+  {name:"Yosuke Asaji",team:"Wild Card"},
+  {name:"Miguel Tabuena",team:"Wild Card"}
+];
+
+// ============================================================
+// STATE
+// ============================================================
+const ADMIN_PW = "LIVgolf2026";
+let isAdmin = false;
+let detectedPlayers = [];
+let matchResults = {matched:[], nonLiv:[]};
+let nonLivFull = [];
+let resultTeamFilter = 'all';
+let rosterTeamFilter = 'all';
+let pendingImportData = null;
+
+// ============================================================
+// LOCALSTORAGE PERSISTENCE
+// Keys: liv_roster, is_wins_override
+// ============================================================
+const LS_ROSTER   = 'liv_dashboard_roster_v1';
+const LS_IS_WINS  = 'liv_dashboard_iswins_v1';
+
+function saveRosterToStorage() {
+  try { localStorage.setItem(LS_ROSTER, JSON.stringify(roster)); } catch(e) {}
+}
+
+function loadRosterFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_ROSTER);
+    if (raw) { roster = JSON.parse(raw); return true; }
+  } catch(e) {}
+  return false;
+}
+
+function saveISWinsToStorage(data) {
+  try { localStorage.setItem(LS_IS_WINS, JSON.stringify(data)); } catch(e) {}
+}
+
+function loadISWinsFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_IS_WINS);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (Object.keys(data).length) return data;
+    }
+  } catch(e) {}
+  return null;
+}
+
+function clearISWinsFromStorage() {
+  try { localStorage.removeItem(LS_IS_WINS); } catch(e) {}
+}
+
+// ============================================================
+// INTERNATIONAL SERIES WINS — complete 2022–2025 (Wikipedia verified)
+// key: normalised name, value: { wins: N, tournaments: [...] }
+// ============================================================
+const isWinsData = {
+  // 3 wins
+  "andy ogletree":         {wins:3, tournaments:["IS Egypt 2022","IS Qatar 2023","IS England 2023"]},
+  // 2 wins
+  "scott vincent":         {wins:2, tournaments:["IS England 2022","IS Morocco 2025"]},
+  "wade ormsby":           {wins:2, tournaments:["IS Thailand 2023","Jakarta International 2025"]},
+  "ben campbell":          {wins:2, tournaments:["Hong Kong Open 2023","IS Morocco 2024"]},
+  "peter uihlein":         {wins:2, tournaments:["IS England 2024","IS Qatar 2024"]},
+  "carlos ortiz":          {wins:2, tournaments:["IS Oman 2024","IS Macau 2025"]},
+  "sarit suwannarut":      {wins:2, tournaments:["BNI Indonesian Masters 2022","Volvo China Open 2023"]},
+  // 1 win
+  "sihwan kim":            {wins:1, tournaments:["IS Thailand 2022"]},
+  "nitithorn thippong":    {wins:1, tournaments:["IS Singapore 2022"]},
+  "ok tae-hoon":           {wins:1, tournaments:["IS Korea 2022"]},
+  "jazz janewattananond":  {wins:1, tournaments:["IS Morocco 2022"]},
+  "takumi kanaya":         {wins:1, tournaments:["IS Oman 2023"]},
+  "kieran vincent":        {wins:1, tournaments:["IS Vietnam 2023"]},
+  "eugenio chacarra":      {wins:1, tournaments:["St Andrews Bay 2023"]},
+  "david puig":            {wins:1, tournaments:["IS Singapore 2023"]},
+  "gaganjeet bhullar":     {wins:1, tournaments:["BNI Indonesian Masters 2023"]},
+  "john catlin":           {wins:1, tournaments:["IS Macau 2024"]},
+  "m j maguire":           {wins:1, tournaments:["Black Mountain Championship 2024"]},
+  "mj maguire":            {wins:1, tournaments:["Black Mountain Championship 2024"]},
+  "lee chieh-po":          {wins:1, tournaments:["IS Thailand 2024"]},
+  "richard t. lee":        {wins:1, tournaments:["BNI Indonesian Masters 2024"]},
+  "richard t lee":         {wins:1, tournaments:["BNI Indonesian Masters 2024"]},
+  "patrick reed":          {wins:1, tournaments:["Link Hong Kong Open 2024"]},
+  "joaquin niemann":       {wins:1, tournaments:["PIF Saudi International 2024"]},
+  "ollie schniederjans":   {wins:1, tournaments:["IS India 2025"]},
+  "lucas herbert":         {wins:1, tournaments:["IS Japan 2025"]},
+  "miguel tabuena":        {wins:1, tournaments:["IS Philippines 2025"]},
+  "tom mckibbin":          {wins:1, tournaments:["Link Hong Kong Open 2025"]},
+  "yosuke asaji":          {wins:1, tournaments:["Moutai Singapore Open 2025"]},
+  "travis smyth":          {wins:1, tournaments:["IS Japan 2026"]},
+  "josele ballester":      {wins:1, tournaments:["PIF Saudi International 2025"]},
+};
+
+function getISWins(name) {
+  const key = normMatch(name);
+  // Check uploaded overrides first, then built-in
+  const source = Object.keys(isWinsOverride).length ? isWinsOverride : isWinsData;
+  // Combined: built-in + any uploaded additions
+  const combined = Object.assign({}, isWinsData, isWinsOverride);
+  if (combined[key]) return combined[key];
+  const stripped = key.replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();
+  if (combined[stripped]) return combined[stripped];
+  const parts = key.split(' ');
+  const last = parts[parts.length-1];
+  for (const [k, v] of Object.entries(combined)) {
+    const kParts = k.split(' ');
+    if (kParts[kParts.length-1] === last && k.includes(parts[0])) return v;
+  }
+  return null;
+}
+
+// Uploaded IS winners — merges with and overrides isWinsData
+let isWinsOverride = {};
+let isWinsUploaded = false;
+
+// ============================================================
+// IS WINNERS UPLOAD
+// ============================================================
+// IS Winners drag-drop — set up after DOM is ready (element is inside hidden admin panel)
+function initISWinsDrop() {
+  const zone = document.getElementById('isWinsDropZone');
+  if (!zone || zone._init) return;
+  zone._init = true;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#a78bfa'; zone.style.background='rgba(167,139,250,.09)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor='rgba(167,139,250,.3)'; zone.style.background=''; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.style.borderColor='rgba(167,139,250,.3)'; zone.style.background='';
+    if (e.dataTransfer.files[0]) loadISWinsFile(e.dataTransfer.files[0]);
+  });
+}
+
+function handleISWins(e) { if (e.target.files[0]) loadISWinsFile(e.target.files[0]); }
+
+function loadISWinsFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let rows;
+      if (ext === 'csv') {
+        const text = new TextDecoder().decode(e.target.result);
+        rows = text.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+      } else {
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:false});
+      }
+      parseISWinsRows(rows);
+    } catch(err) { toast('Could not read file: ' + err.message, '&#10005;'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function refreshISWinsPill() {
+  if (isWinsUploaded) {
+    const count = Object.keys(isWinsOverride).length;
+    const wins = Object.values(isWinsOverride).reduce((s,v)=>s+v.wins,0);
+    document.getElementById('isWinsClearBtn').style.display = 'inline-flex';
+    setISWinsPill(true, wins + ' wins · ' + count + ' players (saved)');
+  } else {
+    document.getElementById('isWinsClearBtn').style.display = 'none';
+    setISWinsPill(false, 'Using built-in data');
+  }
+}
+
+function clearISWins(e) {
+  if (e) e.stopPropagation();
+  isWinsOverride = {}; isWinsUploaded = false;
+  document.getElementById('isWinsInput').value = '';
+  clearISWinsFromStorage();
+  refreshISWinsPill();
+  if (matchResults.matched.length || matchResults.nonLiv.length) renderResults();
+  toast('IS Winners reset to built-in data');
+}
+
+function loadISWinsFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let rows;
+      if (ext === 'csv') {
+        const text = new TextDecoder().decode(e.target.result);
+        rows = text.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+      } else {
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:false});
+      }
+      parseISWinsRows(rows);
+    } catch(err) { toast('Could not read file: ' + err.message, '&#10005;'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseISWinsRows(rows) {
+  // Find header row with "Player" and "Tournament" columns
+  let nameCol = -1, tournCol = -1, headerRow = -1;
+  for (let r = 0; r < Math.min(rows.length, 5); r++) {
+    const row = (rows[r]||[]).map(c => String(c||'').toLowerCase().trim());
+    for (let c = 0; c < row.length; c++) {
+      if (['player','player name','name'].includes(row[c]) && nameCol < 0) { nameCol = c; headerRow = r; }
+      if (['tournament','event','tournament name','win','title'].includes(row[c]) && tournCol < 0) tournCol = c;
+    }
+    if (nameCol >= 0 && tournCol >= 0) break;
+  }
+  // Fallback: col 0 = player, col 1 = tournament
+  if (nameCol < 0) nameCol = 0;
+  if (tournCol < 0) tournCol = 1;
+
+  // Build merged wins map from uploaded file
+  // One row per win — aggregate multiple rows for same player
+  const tempMap = {};
+  const start = headerRow >= 0 ? headerRow + 1 : 1;
+  let rowCount = 0;
+  for (let r = start; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const name = String(row[nameCol]||'').trim();
+    const tourn = String(row[tournCol]||'').trim();
+    if (!name || !tourn || name.toLowerCase() === 'player') continue;
+    const key = normMatch(name);
+    if (!tempMap[key]) tempMap[key] = {wins:0, tournaments:[]};
+    tempMap[key].wins++;
+    tempMap[key].tournaments.push(tourn);
+    rowCount++;
+  }
+
+  if (!rowCount) { toast('No winner data found — check file has Player and Tournament columns', '&#10005;'); return; }
+
+  isWinsOverride = tempMap;
+  isWinsUploaded = true;
+  saveISWinsToStorage(tempMap);
+  const playerCount = Object.keys(tempMap).length;
+  refreshISWinsPill();
+  if (matchResults.matched.length || matchResults.nonLiv.length) renderResults();
+  toast(rowCount + ' IS wins loaded (' + playerCount + ' players) — saved', '&#10003;');
+}
+
+function setISWinsPill(loaded, text) {
+  const pill = document.getElementById('isWinsPill');
+  pill.classList.toggle('loaded', loaded);
+  document.getElementById('isWinsPillText').textContent = text;
+}
+
+// Download the current complete IS winners as a starter CSV
+function downloadISTemplate(e) {
+  e.preventDefault();
+  // Build rows: one row per win from the full built-in dataset
+  const rows = [['Player Name','Tournament']];
+  // Sort by player name for readability
+  const sorted = Object.entries(isWinsData).sort((a,b)=>a[0].localeCompare(b[0]));
+  for (const [key, data] of sorted) {
+    // Use the nicely cased name from the key
+    const displayName = key.replace(/\b\w/g, c=>c.toUpperCase());
+    for (const t of data.tournaments) {
+      rows.push([displayName, t]);
+    }
+  }
+  // Convert to CSV
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'IS_Winners.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('IS_Winners.csv downloaded — add new wins and re-upload', '&#128190;');
+}
+
+// OWGR: map of normalised name → rank number
+let owgrMap = {};        // key: norm(name), value: rank (integer)
+let owgrRawList = [];    // [{name, rank}] — full list for fuzzy fallback
+let owgrLoaded = false;
+let owgrPlayerCount = 0;
+
+// Alias map: entry list name → OWGR name (admin-managed)
+// Pre-seeded with all known mismatches
+let aliasMap = {
+  // LIV players
+  "josele ballester":          "jose luis ballester",
+  "byeong hun an":             "byeong-hun an",
+  "ben an":                    "byeong-hun an",
+  "richard t. lee":            "richard lee",
+  "charles howell iii":        "charles howell",
+  "harold varner iii":         "harold varner",
+  "luis masaveu":              "luis masaveu roncal",
+  // Asian Tour / other entry list mismatches
+  "james leow":                "james leow kwang aik",
+  "koh dengshan":              "dengshan koh",
+  "marcus lim":                "marcus lim pang chuen",
+  "naraajie ramadhanputra":    "naraajie e ramadhan putra",
+  "othman almulla":            "othman al mulla",
+  "pablo ereno":               "pablo ereno perez",
+  "xu andi":                   "andi xu"
+};
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('on', el.dataset.tab === t));
+  document.querySelectorAll('.panel').forEach(el => el.classList.toggle('on', el.id === 'panel-' + t));
+  if (t === 'rankings') renderRankingsTable();
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+function showLogin() {
+  if (isAdmin) { logoutAdmin(); return; }
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwErr').style.display = 'none';
+  openModal('loginModal');
+  setTimeout(() => document.getElementById('pwInput').focus(), 150);
+}
+function doLogin() {
+  if (document.getElementById('pwInput').value === ADMIN_PW) {
+    isAdmin = true;
+    closeModal('loginModal');
+    document.getElementById('adminBtn').classList.add('on');
+    document.getElementById('adminBtn').innerHTML = '&#9878; Admin: ON';
+    document.getElementById('rosterTab').classList.add('show');
+    document.getElementById('aliasTab').classList.add('show');
+    renderRoster();
+    renderAliases();
+    refreshISWinsPill();
+    initISWinsDrop();
+    toast('Admin access granted', '&#10003;');
+  } else {
+    document.getElementById('pwErr').style.display = 'block';
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+function logoutAdmin() {
+  isAdmin = false;
+  document.getElementById('adminBtn').classList.remove('on');
+  document.getElementById('adminBtn').innerHTML = '&#9878; Admin';
+  document.getElementById('rosterTab').classList.remove('show');
+  document.getElementById('aliasTab').classList.remove('show');
+  if (document.querySelector('[data-tab="roster"]').classList.contains('on') ||
+      document.querySelector('[data-tab="aliases"]').classList.contains('on')) switchTab('upload');
+  toast('Admin session ended');
+}
+
+// ============================================================
+// OWGR UPLOAD
+// ============================================================
+const owgrDrop = document.getElementById('owgrDrop');
+owgrDrop.addEventListener('dragover', e => { e.preventDefault(); owgrDrop.classList.add('drag'); });
+owgrDrop.addEventListener('dragleave', () => owgrDrop.classList.remove('drag'));
+owgrDrop.addEventListener('drop', e => {
+  e.preventDefault(); owgrDrop.classList.remove('drag');
+  if (e.dataTransfer.files[0]) loadOWGRFile(e.dataTransfer.files[0]);
+});
+
+function handleOWGR(e) { if (e.target.files[0]) loadOWGRFile(e.target.files[0]); }
+
+function clearOWGR(e) {
+  if (e) e.stopPropagation();
+  owgrMap = {}; owgrRawList = []; owgrLoaded = false; owgrPlayerCount = 0;
+  document.getElementById('owgrInput').value = '';
+  document.getElementById('owgrClearBtn').style.display = 'none';
+  setOwgrPill(false, '');
+  updateRankColumns();
+  toast('OWGR rankings cleared');
+}
+
+function loadOWGRFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let rows;
+      if (ext === 'csv') {
+        // Parse CSV manually
+        const text = new TextDecoder().decode(e.target.result);
+        rows = text.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+      } else {
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:false});
+      }
+      parseOWGRRows(rows, file.name);
+    } catch(err) { toast('Could not read OWGR file: ' + err.message, '&#10005;'); }
+  };
+  if (ext === 'csv') reader.readAsArrayBuffer(file);
+  else reader.readAsArrayBuffer(file);
+}
+
+function parseOWGRRows(rows) {
+  // OWGR download format: columns include RANKING, NAME (and possibly CTRY, AVERAGE POINTS etc.)
+  // Find header row
+  let rankCol = -1, nameCol = -1, headerRow = -1;
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
+    const row = (rows[r] || []).map(c => String(c||'').toLowerCase().trim());
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] === 'ranking' || row[c] === 'rank' || row[c] === 'position' || row[c] === 'pos') rankCol = c;
+      if (row[c] === 'name' || row[c] === 'player' || row[c] === 'player name') nameCol = c;
+    }
+    if (rankCol >= 0 && nameCol >= 0) { headerRow = r; break; }
+  }
+
+  // Fallback: OWGR download typically has RANKING in col 0, NAME in col 4
+  if (rankCol < 0) rankCol = 0;
+  if (nameCol < 0) {
+    // Find the column with the most name-like values
+    const scores = {};
+    for (let r = 1; r < Math.min(rows.length, 30); r++) {
+      (rows[r]||[]).forEach((cell,c) => {
+        const v = String(cell||'').trim();
+        if (v.length > 3 && isNaN(v) && /[a-zA-Z]/.test(v) && v.split(/\s+/).length >= 2) scores[c] = (scores[c]||0)+1;
+      });
+    }
+    const best = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+    nameCol = best.length ? parseInt(best[0][0]) : 4;
+  }
+
+  owgrMap = {};
+  owgrRawList = [];
+  let count = 0;
+  const start = headerRow >= 0 ? headerRow + 1 : 1;
+  for (let r = start; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const rankRaw = String(row[rankCol]||'').trim();
+    const nameRaw = String(row[nameCol]||'').trim();
+    const rankNum = parseInt(rankRaw);
+    if (!isNaN(rankNum) && rankNum > 0 && nameRaw.length > 2) {
+      owgrMap[normMatch(nameRaw)] = rankNum;
+      owgrRawList.push({name: nameRaw, rank: rankNum});
+      count++;
+    }
+  }
+
+  if (!count) { toast('No ranking data found in file. Check format.', '&#10005;'); return; }
+  owgrLoaded = true;
+  owgrPlayerCount = count;
+  clearOwgrCache();
+  document.getElementById('owgrClearBtn').style.display = 'inline-flex';
+  setOwgrPill(true, count + ' players loaded');
+  updateRankColumns();
+  toast(count + ' OWGR rankings loaded', '&#10003;');
+}
+
+function setOwgrPill(loaded, text) {
+  const pill = document.getElementById('owgrPill');
+  const txt = document.getElementById('owgrPillText');
+  pill.classList.toggle('loaded', loaded);
+  txt.textContent = text || 'Not loaded';
+}
+
+// ============================================================
+// OWGR SMART LOOKUP — 4-layer matching
+// ============================================================
+
+// Levenshtein distance for fuzzy matching
+function lev(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  const dp = Array.from({length:m+1}, (_,i) => Array.from({length:n+1}, (_,j) => j||i));
+  for (let i=1;i<=m;i++) for (let j=1;j<=n;j++)
+    dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function normOWGR(s) {
+  return s.toLowerCase()
+    .replace(/[àáâãäå]/g,'a').replace(/[èéêë]/g,'e').replace(/[ìíîï]/g,'i')
+    .replace(/[òóôõö]/g,'o').replace(/[ùúûü]/g,'u').replace(/[ñ]/g,'n')
+    .replace(/[-]/g,' ')        // hyphens → space (byeong-hun → byeong hun)
+    .replace(/[^a-z\s]/g,'')    // strip punctuation
+    .replace(/\s+/g,' ').trim();
+}
+
+function lastName(s) {
+  const parts = normOWGR(s).split(' ');
+  return parts[parts.length-1];
+}
+
+function firstNames(s) {
+  const parts = normOWGR(s).split(' ');
+  return parts.slice(0,-1).join(' ');
+}
+
+// Score how well two names match (0–1)
+function nameScore(entryName, owgrName) {
+  const en = normOWGR(entryName), on = normOWGR(owgrName);
+  if (en === on) return 1.0;
+  const eLast = lastName(entryName), oLast = lastName(owgrName);
+  const eFirst = firstNames(entryName), oFirst = firstNames(owgrName);
+  // Last names must be very close
+  const lastDist = lev(eLast, oLast);
+  const lastMaxLen = Math.max(eLast.length, oLast.length, 1);
+  if (lastDist / lastMaxLen > 0.25) return 0; // last name too different → skip
+  const lastScore = 1 - lastDist / lastMaxLen;
+  // First name scoring — handle nicknames, abbreviated first names, middle names
+  let firstScore = 0;
+  if (!eFirst || !oFirst) {
+    firstScore = 0.5; // one is missing first name
+  } else {
+    // Check if entry first name is contained in OWGR first name or vice versa
+    const eF = eFirst.split(' '), oF = oFirst.split(' ');
+    // Direct similarity
+    const directDist = lev(eFirst, oFirst);
+    const directSim = 1 - directDist / Math.max(eFirst.length, oFirst.length, 1);
+    // Token-level: does any entry first token closely match any OWGR first token?
+    let tokenBest = 0;
+    for (const et of eF) for (const ot of oF) {
+      const s = 1 - lev(et,ot)/Math.max(et.length,ot.length,1);
+      if (s > tokenBest) tokenBest = s;
+    }
+    // Prefix check: "Jose" matches "Jose Luis" — entry first is prefix of OWGR first
+    const prefixMatch = oFirst.startsWith(eFirst) || eFirst.startsWith(oFirst) ? 0.85 : 0;
+    firstScore = Math.max(directSim, tokenBest * 0.9, prefixMatch);
+  }
+  return lastScore * 0.6 + firstScore * 0.4;
+}
+
+const OWGR_FUZZY_THRESHOLD = 0.72;
+// Cache resolved ranks to avoid repeated fuzzy scans
+const owgrResolvedCache = {};
+
+function getRank(entryName) {
+  if (!owgrLoaded) return null;
+
+  const cacheKey = normMatch(entryName);
+  if (owgrResolvedCache[cacheKey] !== undefined) return owgrResolvedCache[cacheKey];
+
+  // Layer 1: Check alias map first
+  const aliasKey = normOWGR(entryName);
+  if (aliasMap[aliasKey]) {
+    const aliasResult = owgrMap[normMatch(aliasMap[aliasKey])];
+    if (aliasResult) { owgrResolvedCache[cacheKey] = aliasResult; return aliasResult; }
+    // Alias exists but not in OWGR — try fuzzy on the alias target
+    const aliasTarget = aliasMap[aliasKey];
+    for (const {name, rank} of owgrRawList) {
+      if (nameScore(aliasTarget, name) >= 0.95) {
+        owgrResolvedCache[cacheKey] = rank; return rank;
+      }
+    }
+  }
+
+  // Layer 2: Exact normalised match
+  const exact = owgrMap[normMatch(entryName)];
+  if (exact) { owgrResolvedCache[cacheKey] = exact; return exact; }
+
+  // Layer 3: Last-name-exact + first-name-fuzzy
+  const entryLast = lastName(entryName);
+  let bestScore = 0, bestRank = null;
+  for (const {name, rank} of owgrRawList) {
+    const owLast = lastName(name);
+    if (lev(entryLast, owLast) > 1) continue; // last name must be very close
+    const score = nameScore(entryName, name);
+    if (score > bestScore) { bestScore = score; bestRank = rank; }
+  }
+  if (bestScore >= OWGR_FUZZY_THRESHOLD) {
+    owgrResolvedCache[cacheKey] = bestRank; return bestRank;
+  }
+
+  // Layer 4: Full fuzzy scan (slower, last resort)
+  bestScore = 0; bestRank = null;
+  for (const {name, rank} of owgrRawList) {
+    const score = nameScore(entryName, name);
+    if (score > bestScore) { bestScore = score; bestRank = rank; }
+  }
+  const result = bestScore >= OWGR_FUZZY_THRESHOLD ? bestRank : null;
+  owgrResolvedCache[cacheKey] = result;
+  return result;
+}
+
+function getRankWithSource(entryName) {
+  if (!owgrLoaded) return {rank: null, source: null, owgrName: null};
+  const rank = getRank(entryName);
+  if (!rank) return {rank: null, source: null, owgrName: null};
+
+  // Find which OWGR name matched
+  const cacheKey = normMatch(entryName);
+  const aliasKey = normOWGR(entryName);
+  let owgrName = null;
+
+  if (aliasMap[aliasKey]) owgrName = aliasMap[aliasKey];
+  else if (owgrMap[normMatch(entryName)]) owgrName = entryName;
+  else {
+    // Find best matching name from raw list
+    let best = 0;
+    for (const {name, rank: r} of owgrRawList) {
+      if (r !== rank) continue;
+      const s = nameScore(entryName, name);
+      if (s > best) { best = s; owgrName = name; }
+    }
+  }
+  const isExact = normOWGR(entryName) === normOWGR(owgrName || '');
+  return {rank, owgrName, isExact};
+}
+
+function rankClass(r) {
+  if (!r) return 'r-none';
+  if (r <= 10) return 'r-top10';
+  if (r <= 50) return 'r-top50';
+  if (r <= 100) return 'r-top100';
+  return 'r-rest';
+}
+
+function rankDisplay(name) {
+  const {rank, owgrName, isExact} = getRankWithSource(name);
+  if (!rank) return `<span class="rank-cell r-none">—</span>`;
+  const indicator = (!isExact && owgrName)
+    ? ` <span title="Matched to: ${esc(owgrName)}" style="cursor:help;font-size:10px;color:var(--tx3)">~</span>`
+    : '';
+  return `<span class="rank-cell ${rankClass(rank)}">${rank}${indicator}</span>`;
+}
+
+function clearOwgrCache() {
+  // Clear resolved cache whenever aliases or OWGR data changes
+  Object.keys(owgrResolvedCache).forEach(k => delete owgrResolvedCache[k]);
+}
+
+function updateRankColumns() {
+  const show = owgrLoaded;
+  ['previewRankHead','livRankHead','nonLivRankHead'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? '' : 'none';
+  });
+  // Re-render tables if data exists
+  if (detectedPlayers.length) renderPreviewRows(detectedPlayers);
+  if (matchResults.matched.length || matchResults.nonLiv.length) {
+    renderMatchRows();
+    renderNonLiv(nonLivFull);
+  }
+}
+
+// ============================================================
+// ENTRY LIST UPLOAD
+// ============================================================
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+function clearFile() {
+  document.getElementById('fileInput').value = '';
+  document.getElementById('filePill').style.display = 'none';
+  document.getElementById('previewCard').style.display = 'none';
+  detectedPlayers = [];
+}
+
+async function processFile(file) {
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('filePill').style.display = 'flex';
+  const ext = file.name.split('.').pop().toLowerCase();
+  try {
+    const raw = ext === 'pdf' ? await parsePDF(file) : await parseExcel(file);
+    detectedPlayers = raw.filter(p => p && p.trim().length > 1);
+    showPreview();
+  } catch(err) { toast('Could not read file: ' + err.message, '&#10005;'); }
+}
+
+// ============================================================
+// EXCEL PARSER
+// ============================================================
+async function parseExcel(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false});
+        resolve(extractNames(rows));
+      } catch(err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function extractNames(rows) {
+  let nameCol = -1, headerRow = -1;
+  const keywords = ['player','name','player name','full name','golfer'];
+  for (let r = 0; r < Math.min(rows.length, 25); r++) {
+    const row = rows[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      if (keywords.includes(String(row[c]||'').toLowerCase().trim())) {
+        nameCol = c; headerRow = r; break;
+      }
+    }
+    if (nameCol >= 0) break;
+  }
+  if (nameCol < 0) {
+    const scores = {};
+    for (let r = 0; r < Math.min(rows.length, 40); r++) {
+      (rows[r]||[]).forEach((cell,c) => {
+        const v = String(cell||'').trim();
+        if (isNameLike(v)) scores[c] = (scores[c]||0)+1;
+      });
+    }
+    const best = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+    nameCol = best.length ? parseInt(best[0][0]) : 0;
+  }
+  const names = [];
+  const start = headerRow >= 0 ? headerRow + 1 : 0;
+  for (let r = start; r < rows.length; r++) {
+    const val = String((rows[r]||[])[nameCol]||'').trim();
+    if (val && isNameLike(val)) names.push(val);
+  }
+  return names;
+}
+
+function isNameLike(s) {
+  if (!s || s.length < 4 || s.length > 80) return false;
+  if (!isNaN(s)) return false;
+  // Exact category headers and labels to skip — includes all known ones from tournament entry lists
+  const skips = new Set([
+    'player','name','player name','full name','total','subtotal','group','category',
+    'amateur','professional','pro','field','entry list','entries','-','n/a','tbd',
+    // General category headers
+    'cat','leading player','liv promotions',
+    'ncaa individual championship',
+    'pga tour of australasia',
+    'regional exemptions',
+    'reserve list',
+    'top 300 official world golf ranking',
+    'top 8 previous is event',
+    'tournament invitations',
+    // Asian Tour specific category headers
+    'cat 1 order of merit winners',
+    'cat 10 top 20 cumulative career money',
+    'cat 12 board/liv exemptions',
+    'cat 13 previous season adt om winner',
+    'cat 15b - medical / military exemption',
+    'cat 16 top 35 from qs finals/adt',
+    'cat 17 66-75 from previous season at om',
+    'cat 18 taiwan pga/atgt/china tour oom',
+    'cat 19 pga country members exemptions',
+    'cat 20 76-110 from previous season at om',
+    'cat 3a multiple tournament winners',
+    'cat 4a tournament winners',
+    'cat 8 top 5 from previous at tournament',
+    'cat 9a top 65 from previous year at oom',
+    'cat 9b medical / military exemption',
+    'korean pga',
+    'leading player in the top 5 current oom',
+    'liv promotions qualifiers'
+  ]);
+  if (skips.has(s.toLowerCase().trim())) return false;
+  // Also catch anything that starts with "cat " followed by a number — future-proofing
+  if (/^cat\s+\d/i.test(s.trim())) return false;
+  if (s.trim().split(/\s+/).length < 2) return false;
+  return (s.match(/[a-zA-Z]/g)||[]).length / s.length > 0.6;
+}
+
+// ============================================================
+// PDF PARSER
+// ============================================================
+async function parsePDF(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF library not ready');
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  const lines = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const byY = {};
+    for (const item of content.items) {
+      const y = Math.round(item.transform[5]);
+      (byY[y] = byY[y]||[]).push(item.str);
+    }
+    Object.keys(byY).sort((a,b)=>b-a).forEach(y => lines.push(byY[y].join(' ').trim()));
+  }
+  return lines.filter(l => isNameLike(l));
+}
+
+// ============================================================
+// PREVIEW
+// ============================================================
+function showPreview() {
+  document.getElementById('previewCard').style.display = 'block';
+  document.getElementById('detectedCount').textContent = detectedPlayers.length + ' players';
+  document.getElementById('rosterWarning').style.display = roster.length === 0 ? 'block' : 'none';
+  document.getElementById('previewRankHead').style.display = owgrLoaded ? '' : 'none';
+  renderPreviewRows(detectedPlayers);
+}
+
+function renderPreviewRows(players) {
+  document.getElementById('previewBody').innerHTML = players.map((p,i) =>
+    `<tr>
+      <td class="rn">${i+1}</td>
+      <td>${esc(p)}</td>
+      ${owgrLoaded ? `<td class="rank-cell">${rankDisplay(p)}</td>` : ''}
+    </tr>`
+  ).join('');
+}
+
+function filterPreview(q) {
+  const f = q.toLowerCase();
+  renderPreviewRows(detectedPlayers.filter(p => p.toLowerCase().includes(f)));
+}
+
+// ============================================================
+// EXACT MATCH
+// ============================================================
+function normMatch(s) {
+  return s.toLowerCase().trim().replace(/\s+/g,' ');
+}
+
+function runMatch() {
+  if (!detectedPlayers.length) { toast('No players detected yet', '&#10005;'); return; }
+  if (!roster.length) { toast('LIV Roster is empty', '&#10005;'); return; }
+
+  const rosterMap = {};
+  for (const p of roster) rosterMap[normMatch(p.name)] = p;
+
+  const matched = [], nonLiv = [];
+  const usedKeys = new Set();
+
+  for (const entry of detectedPlayers) {
+    const key = normMatch(entry);
+    if (rosterMap[key] && !usedKeys.has(key)) {
+      matched.push({livPlayer: rosterMap[key], entryName: entry});
+      usedKeys.add(key);
+    } else if (!rosterMap[key]) {
+      nonLiv.push(entry);
+    }
+  }
+
+  matchResults = {matched, nonLiv};
+  nonLivFull = [...nonLiv];
+  resultTeamFilter = 'all';
+  renderResults();
+  switchTab('results');
+}
+
+// ============================================================
+// RENDER RESULTS
+// ============================================================
+function isWinsDisplay(name) {
+  const data = getISWins(name);
+  if (!data) return `<span style="color:var(--tx3);font-size:11px">—</span>`;
+  const trophyTitle = data.tournaments.join(', ');
+  return `<span title="${esc(trophyTitle)}" style="cursor:help;display:inline-flex;align-items:center;gap:4px">
+    <span style="font-size:14px">&#127942;</span>
+    <span style="font-weight:700;color:var(--gold2);font-size:13px">${data.wins}</span>
+  </span>`;
+}
+
+let champFilterActive = false;
+
+function renderResults() {
+  const {matched, nonLiv} = matchResults;
+  const total = detectedPlayers.length;
+  const pct = total ? Math.round(matched.length/total*100) : 0;
+
+  document.getElementById('noResultsMsg').style.display = 'none';
+  document.getElementById('resultsWrap').style.display = 'block';
+
+  document.getElementById('heroTitle').textContent = matched.length
+    ? matched.length + ' LIV Player' + (matched.length>1?'s':'') + ' Identified'
+    : 'No LIV Players Found';
+  document.getElementById('heroSub').textContent =
+    total + ' players in field  ·  ' + matched.length + ' LIV  ·  ' + nonLiv.length + ' non-LIV';
+
+  document.getElementById('livRankHead').style.display = owgrLoaded ? '' : 'none';
+  document.getElementById('nonLivRankHead').style.display = owgrLoaded ? '' : 'none';
+
+  const teams = new Set(matched.map(m=>m.livPlayer.team));
+  let topRankedName = '', topRankedRank = Infinity;
+  for (const p of detectedPlayers) {
+    const r = getRank(p); if (r && r < topRankedRank) { topRankedRank = r; topRankedName = p; }
+  }
+
+  // Count IS champions in full field
+  const isChampCount = detectedPlayers.filter(p => getISWins(p)).length;
+
+  let statsHTML = [
+    ['hi', matched.length, 'LIV Players'],
+    ['', nonLiv.length, 'Non-LIV'],
+    ['', total, 'Total Field'],
+    ['', teams.size, 'Teams Rep.'],
+    ['', pct+'%', 'LIV %'],
+    ['', isChampCount, 'IS Champions']
+  ].map(([c,n,l])=>`<div class="stat ${c}"><div class="stat-n">${n}</div><div class="stat-l">${l}</div></div>`).join('');
+
+  if (owgrLoaded && topRankedName) {
+    statsHTML += `<div class="stat green"><div class="stat-n">#${topRankedRank}</div><div class="stat-l">Top Ranked<br><span style="font-size:9px;color:#6ee09a;font-weight:400">${esc(topRankedName)}</span></div></div>`;
+  }
+  document.getElementById('statsRow').innerHTML = statsHTML;
+
+  // Team chips
+  const allTeams = ['all', ...[...teams].sort()];
+  document.getElementById('teamChips').innerHTML = allTeams.map(t =>
+    `<div class="chip ${t===resultTeamFilter?'on':''}" onclick="setResultTeam('${esc(t)}',this)">${t==='all'?'All Teams':t}</div>`
+  ).join('');
+
+  // Champion filter chip
+  champFilterActive = false;
+  document.getElementById('champChips').innerHTML =
+    `<div class="chip" id="champChip" onclick="toggleChampFilter(this)" title="Show only IS tournament champions">&#127942; IS Champions only</div>`;
+
+  renderMatchRows();
+  renderNonLiv(nonLiv);
+  document.getElementById('nonLivCount').textContent = nonLiv.length + ' players';
+}
+
+function toggleChampFilter(el) {
+  champFilterActive = !champFilterActive;
+  el.classList.toggle('on', champFilterActive);
+  renderMatchRows();
+  renderNonLiv(nonLivFull);
+}
+
+function setResultTeam(t, el) {
+  resultTeamFilter = t;
+  document.querySelectorAll('#teamChips .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  renderMatchRows();
+}
+
+function renderMatchRows() {
+  let filtered = resultTeamFilter==='all' ? matchResults.matched
+    : matchResults.matched.filter(m=>m.livPlayer.team===resultTeamFilter);
+  if (champFilterActive) filtered = filtered.filter(m => getISWins(m.livPlayer.name));
+
+  const body = document.getElementById('matchBody');
+  const noMsg = document.getElementById('noMatchMsg');
+  if (!filtered.length) { body.innerHTML=''; noMsg.style.display='block'; return; }
+  noMsg.style.display='none';
+  body.innerHTML = filtered.map((m,i) =>
+    `<tr>
+      <td class="rn">${i+1}</td>
+      <td><strong>${esc(m.livPlayer.name)}</strong></td>
+      <td><span class="badge b-gold" style="font-size:10px">${esc(m.livPlayer.team)}</span></td>
+      ${owgrLoaded ? `<td>${rankDisplay(m.livPlayer.name)}</td>` : ''}
+      <td style="text-align:center">${isWinsDisplay(m.livPlayer.name)}</td>
+    </tr>`
+  ).join('');
+}
+
+function renderNonLiv(players) {
+  let list = champFilterActive ? players.filter(p => getISWins(p)) : players;
+  document.getElementById('nonLivBody').innerHTML = list.map((p,i) =>
+    `<tr>
+      <td class="rn">${i+1}</td>
+      <td>${esc(p)}</td>
+      ${owgrLoaded ? `<td>${rankDisplay(p)}</td>` : ''}
+      <td style="text-align:center">${isWinsDisplay(p)}</td>
+    </tr>`
+  ).join('');
+}
+
+function filterNonLiv(q) {
+  const f = q.toLowerCase();
+  renderNonLiv(nonLivFull.filter(p=>p.toLowerCase().includes(f)));
+}
+
+// ============================================================
+// FULL FIELD RANKINGS TAB
+// ============================================================
+function renderRankingsTable() {
+  const noMsg = document.getElementById('noRankingsMsg');
+  const wrap = document.getElementById('rankingsWrap');
+
+  if (!detectedPlayers.length || !matchResults.matched.length && !matchResults.nonLiv.length) {
+    noMsg.style.display='block'; wrap.style.display='none'; return;
+  }
+  noMsg.style.display='none'; wrap.style.display='block';
+
+  const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
+  const livNameMap = {};
+  for (const p of roster) livNameMap[normMatch(p.name)] = p;
+
+  // Build full field with ranks
+  let allPlayers = detectedPlayers.map(name => {
+    const key = normMatch(name);
+    const isLiv = rosterNames.has(key);
+    const livInfo = isLiv ? livNameMap[key] : null;
+    const rank = getRank(name);
+    return {name, isLiv, livInfo, rank};
+  });
+
+  // Apply Top-N filter
+  const topN = parseInt(document.getElementById('topNSel').value);
+  const catFilter = document.getElementById('rankFilterSel').value;
+
+  if (owgrLoaded) {
+    // Sort by rank (unranked last)
+    allPlayers.sort((a,b) => {
+      if (!a.rank && !b.rank) return a.name.localeCompare(b.name);
+      if (!a.rank) return 1; if (!b.rank) return -1;
+      return a.rank - b.rank;
+    });
+    if (topN > 0) allPlayers = allPlayers.filter(p => p.rank && p.rank <= topN);
+  }
+  if (catFilter === 'liv') allPlayers = allPlayers.filter(p=>p.isLiv);
+  if (catFilter === 'nonliv') allPlayers = allPlayers.filter(p=>!p.isLiv);
+  if (catFilter === 'champions') allPlayers = allPlayers.filter(p => getISWins(p.name));
+
+  document.getElementById('rankingCount').textContent = allPlayers.length + ' players shown';
+
+  document.getElementById('rankingsBody').innerHTML = allPlayers.map((p,i) => {
+    const rankTd = owgrLoaded
+      ? `<td style="width:60px">${p.rank ? `<span class="rank-cell ${rankClass(p.rank)}">${p.rank}</span>` : '<span class="rank-cell r-none">—</span>'}</td>`
+      : `<td class="rank-cell r-none" style="width:60px">${i+1}</td>`;
+    const nameTd = p.isLiv
+      ? `<td><strong>${esc(p.name)}</strong><br><span class="badge b-gold" style="font-size:10px;margin-top:3px">${esc(p.livInfo.team)}</span></td>`
+      : `<td>${esc(p.name)}</td>`;
+    const livBadge = p.isLiv ? `<td><span class="badge b-top">LIV</span></td>` : `<td style="color:var(--tx3);font-size:11px">—</td>`;
+    const isWinsTd = `<td style="text-align:center">${isWinsDisplay(p.name)}</td>`;
+    return `<tr>${rankTd}${nameTd}${livBadge}${isWinsTd}</tr>`;
+  }).join('');
+}
+
+// ============================================================
+// EXPORTS
+// ============================================================
+function exportXLSX() {
+  const {matched, nonLiv} = matchResults;
+  const wb = XLSX.utils.book_new();
+
+  const m1Head = ['#','LIV Player','Team'];
+  if (owgrLoaded) m1Head.push('OWGR');
+  m1Head.push('IS Wins');
+  const m1 = [m1Head];
+  matched.forEach((m,i) => {
+    const row = [i+1, m.livPlayer.name, m.livPlayer.team];
+    if (owgrLoaded) row.push(getRank(m.livPlayer.name)||'—');
+    const isW = getISWins(m.livPlayer.name);
+    row.push(isW ? isW.wins : 0);
+    m1.push(row);
+  });
+  const ws1 = XLSX.utils.aoa_to_sheet(m1);
+  ws1['!cols'] = [{wch:4},{wch:24},{wch:20},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'LIV_Matches');
+
+  const m2Head = ['#','Player'];
+  if (owgrLoaded) m2Head.push('OWGR');
+  m2Head.push('IS Wins');
+  const m2 = [m2Head];
+  nonLiv.forEach((p,i) => {
+    const row = [i+1, p];
+    if (owgrLoaded) row.push(getRank(p)||'—');
+    const isW = getISWins(p);
+    row.push(isW ? isW.wins : 0);
+    m2.push(row);
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(m2);
+  ws2['!cols'] = [{wch:4},{wch:30},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Non_LIV');
+
+  // Full field ranked
+  if (owgrLoaded) {
+    const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
+    const livMap = {};
+    for (const p of roster) livMap[normMatch(p.name)] = p;
+    const all = detectedPlayers.map(n => ({name:n,isLiv:rosterNames.has(normMatch(n)),rank:getRank(n)}))
+      .sort((a,b)=>(!a.rank?Infinity:a.rank)-(!b.rank?Infinity:b.rank));
+    const m3 = [['OWGR','Player','LIV?','Team','IS Wins']];
+    all.forEach(p => {
+      const isW = getISWins(p.name);
+      m3.push([p.rank||'—', p.name, p.isLiv?'Yes':'No', p.isLiv?(livMap[normMatch(p.name)]?.team||''):'', isW?isW.wins:0]);
+    });
+    const ws3 = XLSX.utils.aoa_to_sheet(m3);
+    ws3['!cols'] = [{wch:8},{wch:28},{wch:6},{wch:20}];
+    XLSX.utils.book_append_sheet(wb, ws3, 'Full_Field_Rankings');
+  }
+
+  const total = detectedPlayers.length;
+  const m4 = [['LIV Golf Player Identifier — Match Report'],['Generated',new Date().toLocaleString()],[''],
+    ['Total Field',total],['LIV Players',matched.length],['Non-LIV',nonLiv.length],
+    ['LIV %',total?Math.round(matched.length/total*100)+'%':'0%'],
+    ['OWGR Loaded',owgrLoaded?'Yes':'No']];
+  const ws4 = XLSX.utils.aoa_to_sheet(m4);
+  ws4['!cols'] = [{wch:20},{wch:22}];
+  XLSX.utils.book_append_sheet(wb, ws4, 'Summary');
+
+  XLSX.writeFile(wb, 'LIV_Match_Results.xlsx');
+  toast('Excel downloaded', '&#128190;');
+}
+
+function exportPDF() {
+  const {matched, nonLiv} = matchResults;
+  const {jsPDF} = window.jspdf;
+  if (!jsPDF) { toast('PDF library not loaded yet', '&#10005;'); return; }
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+
+  doc.setFillColor(201,168,76);
+  doc.rect(0,0,210,16,'F');
+  doc.setTextColor(7,8,11);
+  doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text('LIV Golf Player Identifier — Match Report', 12, 11);
+  doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  const total = detectedPlayers.length;
+  doc.text('Generated: '+new Date().toLocaleString()+'   |   Field: '+total+'   LIV: '+matched.length+'   Non-LIV: '+nonLiv.length, 12, 23);
+
+  doc.setTextColor(20,20,20); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('LIV Players Found ('+matched.length+')', 12, 32);
+
+  const livHead = ['#','LIV Player','Team'];
+  if (owgrLoaded) livHead.push('OWGR');
+  livHead.push('IS Wins');
+  doc.autoTable({
+    startY:36,
+    head:[livHead],
+    body:matched.map((m,i)=>{
+      const row=[i+1,m.livPlayer.name,m.livPlayer.team];
+      if(owgrLoaded)row.push(getRank(m.livPlayer.name)||'—');
+      const isW=getISWins(m.livPlayer.name);
+      row.push(isW?isW.wins:0);
+      return row;
+    }),
+    styles:{fontSize:9,cellPadding:3},
+    headStyles:{fillColor:[201,168,76],textColor:[7,8,11],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[248,247,244]},
+    columnStyles:{0:{cellWidth:10}},
+    margin:{left:12,right:12}
+  });
+
+  const y2 = doc.lastAutoTable.finalY+10;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  doc.text('Non-LIV Players ('+nonLiv.length+')', 12, y2);
+  const nonLivHead = ['#','Player'];
+  if (owgrLoaded) nonLivHead.push('OWGR');
+  nonLivHead.push('IS Wins');
+  doc.autoTable({
+    startY:y2+4,
+    head:[nonLivHead],
+    body:nonLiv.map((p,i)=>{
+      const row=[i+1,p];
+      if(owgrLoaded)row.push(getRank(p)||'—');
+      const isW=getISWins(p);
+      row.push(isW?isW.wins:0);
+      return row;
+    }),
+    styles:{fontSize:8.5,cellPadding:2.5},
+    headStyles:{fillColor:[44,47,58],textColor:[220,220,220],fontStyle:'bold'},
+    margin:{left:12,right:12}
+  });
+
+  doc.save('LIV_Match_Results.pdf');
+  toast('PDF downloaded', '&#128196;');
+}
+
+function exportRankingsXLSX() {
+  if (!detectedPlayers.length) { toast('No field data to export', '&#10005;'); return; }
+  const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
+  const livMap = {};
+  for (const p of roster) livMap[normMatch(p.name)] = p;
+  const topN = parseInt(document.getElementById('topNSel').value);
+  const catFilter = document.getElementById('rankFilterSel').value;
+
+  let all = detectedPlayers.map(n=>({name:n,isLiv:rosterNames.has(normMatch(n)),rank:getRank(n),team:livMap[normMatch(n)]?.team||''}))
+    .sort((a,b)=>(!a.rank?Infinity:a.rank)-(!b.rank?Infinity:b.rank));
+  if (topN>0) all = all.filter(p=>p.rank&&p.rank<=topN);
+  if (catFilter==='liv') all=all.filter(p=>p.isLiv);
+  if (catFilter==='nonliv') all=all.filter(p=>!p.isLiv);
+
+  const wb = XLSX.utils.book_new();
+  const data = [['OWGR Rank','Player','LIV Player?','Team']];
+  all.forEach(p=>data.push([p.rank||'—',p.name,p.isLiv?'Yes':'No',p.team]));
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:10},{wch:28},{wch:12},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,ws,'Field_Rankings');
+  XLSX.writeFile(wb,'Field_Rankings.xlsx');
+  toast('Rankings Excel downloaded','&#128190;');
+}
+
+function exportRankingsPDF() {
+  if (!detectedPlayers.length) { toast('No field data to export','&#10005;'); return; }
+  const {jsPDF} = window.jspdf;
+  if (!jsPDF) { toast('PDF library not ready','&#10005;'); return; }
+  const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
+  const livMap = {};
+  for (const p of roster) livMap[normMatch(p.name)] = p;
+  const topN = parseInt(document.getElementById('topNSel').value);
+  const catFilter = document.getElementById('rankFilterSel').value;
+
+  let all = detectedPlayers.map(n=>({name:n,isLiv:rosterNames.has(normMatch(n)),rank:getRank(n),team:livMap[normMatch(n)]?.team||''}))
+    .sort((a,b)=>(!a.rank?Infinity:a.rank)-(!b.rank?Infinity:b.rank));
+  if (topN>0) all=all.filter(p=>p.rank&&p.rank<=topN);
+  if (catFilter==='liv') all=all.filter(p=>p.isLiv);
+  if (catFilter==='nonliv') all=all.filter(p=>!p.isLiv);
+
+  const doc = new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  doc.setFillColor(201,168,76);
+  doc.rect(0,0,210,16,'F');
+  doc.setTextColor(7,8,11); doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text('Full Field Rankings — OWGR', 12, 11);
+  doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Generated: '+new Date().toLocaleString()+'   |   '+all.length+' players shown', 12, 23);
+  doc.autoTable({
+    startY:28,
+    head:[['OWGR','Player','LIV?','Team']],
+    body:all.map(p=>[p.rank||'—',p.name,p.isLiv?'✓':'',p.team]),
+    styles:{fontSize:8.5,cellPadding:2.5},
+    headStyles:{fillColor:[201,168,76],textColor:[7,8,11],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[248,247,244]},
+    columnStyles:{0:{cellWidth:14},2:{cellWidth:10}},
+    margin:{left:12,right:12}
+  });
+  doc.save('Field_Rankings.pdf');
+  toast('Rankings PDF downloaded','&#128196;');
+}
+
+function copyNames() {
+  const text = matchResults.matched.map(m=>m.livPlayer.name).join('\n');
+  if (!text) { toast('No LIV matches to copy','&#10005;'); return; }
+  navigator.clipboard.writeText(text).then(()=>toast('LIV player names copied','&#128203;'));
+}
+
+// ============================================================
+// ROSTER MANAGEMENT
+// ============================================================
+function renderRoster() {
+  const q = (document.getElementById('rosterSearch').value||'').toLowerCase();
+  const filtered = roster.filter(p => {
+    const mQ = !q || p.name.toLowerCase().includes(q) || p.team.toLowerCase().includes(q);
+    const mT = rosterTeamFilter==='all' || p.team===rosterTeamFilter;
+    return mQ && mT;
+  });
+  document.getElementById('rosterCountBadge').textContent = roster.length+' players';
+  const allTeams = ['all',...[...new Set(roster.map(p=>p.team))].sort()];
+  document.getElementById('rosterTeamChips').innerHTML = allTeams.map(t=>
+    `<div class="chip ${t===rosterTeamFilter?'on':''}" onclick="setRosterTeam('${esc(t)}',this)">${t==='all'?'All':t}</div>`
+  ).join('');
+  const body = document.getElementById('rosterBody');
+  const empty = document.getElementById('rosterEmpty');
+  if (!roster.length) { body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  body.innerHTML = filtered.map(p => {
+    const ri = roster.indexOf(p);
+    return `<tr>
+      <td class="rn">${ri+1}</td>
+      <td><strong>${esc(p.name)}</strong></td>
+      <td><span class="badge b-gold" style="font-size:10px">${esc(p.team||'—')}</span></td>
+      <td><div class="btns">
+        <button class="btn btn-ghost btn-sm" onclick="openAddPlayer(${ri})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="openDelete(${ri})">&#10005;</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function setRosterTeam(t,el) {
+  rosterTeamFilter=t;
+  document.querySelectorAll('#rosterTeamChips .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on'); renderRoster();
+}
+
+function openAddPlayer(idx) {
+  document.getElementById('playerModalTitle').textContent = idx>=0?'Edit Player':'Add Player';
+  document.getElementById('pIdx').value = idx;
+  if (idx>=0) {
+    const parts = roster[idx].name.split(' ');
+    document.getElementById('pFirst').value = parts.slice(0,-1).join(' ');
+    document.getElementById('pLast').value = parts[parts.length-1];
+    document.getElementById('pTeam').value = roster[idx].team||'';
+  } else {
+    ['pFirst','pLast','pTeam'].forEach(id=>document.getElementById(id).value='');
+  }
+  openModal('playerModal');
+  setTimeout(()=>document.getElementById('pFirst').focus(),150);
+}
+
+function savePlayer() {
+  const first=document.getElementById('pFirst').value.trim();
+  const last=document.getElementById('pLast').value.trim();
+  const team=document.getElementById('pTeam').value.trim();
+  if (!first||!last) { toast('First and last name required','&#10005;'); return; }
+  const idx=parseInt(document.getElementById('pIdx').value);
+  const entry={name:first+' '+last,team};
+  if (idx>=0) { roster[idx]=entry; toast('Player updated','&#10003;'); }
+  else { roster.push(entry); toast('Added: '+entry.name,'&#10003;'); }
+  saveRosterToStorage();
+  closeModal('playerModal'); renderRoster();
+}
+
+function openDelete(idx) {
+  document.getElementById('delModalSub').textContent = `Remove "${roster[idx].name}" from the LIV Roster?`;
+  document.getElementById('delIdx').value=idx; openModal('delModal');
+}
+
+function confirmDelete() {
+  const idx=parseInt(document.getElementById('delIdx').value);
+  const name=roster[idx].name; roster.splice(idx,1);
+  saveRosterToStorage();
+  closeModal('delModal'); renderRoster(); toast(name+' removed','&#10003;');
+}
+
+function openClearConfirm() {
+  document.getElementById('clearCount').textContent=roster.length; openModal('clearModal');
+}
+
+function confirmClear() {
+  roster=[]; rosterTeamFilter='all';
+  saveRosterToStorage();
+  closeModal('clearModal'); renderRoster(); toast('Roster cleared','&#10003;');
+}
+
+function importRoster(e) {
+  const file=e.target.files[0]; if (!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try {
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:'',raw:false});
+      let nameCol=-1,teamCol=-1,headerRow=-1;
+      for (let r=0;r<Math.min(rows.length,20);r++) {
+        const row=rows[r]||[];
+        for (let c=0;c<row.length;c++) {
+          const cell=String(row[c]||'').toLowerCase().trim();
+          if (['player','name','player name'].includes(cell)&&nameCol<0){nameCol=c;headerRow=r;}
+          if (['team','team name'].includes(cell)&&teamCol<0) teamCol=c;
+        }
+        if (nameCol>=0) break;
+      }
+      if (nameCol<0) nameCol=0;
+      const parsed=[];
+      const start=headerRow>=0?headerRow+1:0;
+      for (let r=start;r<rows.length;r++){
+        const row=rows[r]||[];
+        const name=String(row[nameCol]||'').trim();
+        const team=teamCol>=0?String(row[teamCol]||'').trim():'';
+        if (name&&isNameLike(name)) parsed.push({name,team});
+      }
+      if (!parsed.length){toast('No player names found in file','&#10005;');return;}
+      if (roster.length>0){
+        pendingImportData=parsed;
+        document.getElementById('importOldCount').textContent=roster.length;
+        document.getElementById('importNewCount').textContent=parsed.length;
+        openModal('importConfirmModal');
+      } else { applyImport(parsed); }
+    } catch(err){toast('Import error: '+err.message,'&#10005;');}
+  };
+  reader.readAsArrayBuffer(file); e.target.value='';
+}
+
+function confirmImport() {
+  if (pendingImportData){applyImport(pendingImportData);pendingImportData=null;}
+  closeModal('importConfirmModal');
+}
+
+function applyImport(data) {
+  roster=data; rosterTeamFilter='all';
+  saveRosterToStorage();
+  renderRoster();
+  toast(data.length+' players loaded into roster','&#10003;');
+}
+
+function downloadRoster() {
+  const wb=XLSX.utils.book_new();
+  const data=[['Player','Team'],...roster.map(p=>[p.name,p.team])];
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:26},{wch:22}];
+  XLSX.utils.book_append_sheet(wb,ws,'LIV_Roster');
+  XLSX.writeFile(wb,'LIV_Roster.xlsx');
+  toast('Roster downloaded','&#128190;');
+}
+
+// ============================================================
+// MODALS / TOAST / UTILS
+// ============================================================
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+
+let toastTimer;
+function toast(msg,icon='&#8505;'){
+  const el=document.getElementById('toast');
+  el.innerHTML=`<span style="font-size:14px">${icon}</span> ${msg}`;
+  el.classList.add('on'); clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('on'),2800);
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ============================================================
+// ALIAS MANAGEMENT
+// ============================================================
+function renderAliases() {
+  const q = (document.getElementById('aliasSearch').value||'').toLowerCase();
+  const entries = Object.entries(aliasMap)
+    .filter(([k,v]) => !q || k.includes(q) || v.toLowerCase().includes(q))
+    .sort((a,b)=>a[0].localeCompare(b[0]));
+
+  const body = document.getElementById('aliasBody');
+  const empty = document.getElementById('aliasEmpty');
+  if (!Object.keys(aliasMap).length) { body.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display = 'none';
+
+  body.innerHTML = entries.map(([entryKey, owgrName]) => {
+    const displayEntry = entryKey.replace(/\b\w/g, c=>c.toUpperCase());
+    const rank = owgrLoaded ? getRank(displayEntry) : null;
+    const rankBadge = rank ? `<span class="badge b-top" style="font-size:10px;margin-left:6px">#${rank}</span>` : '';
+    return `<tr>
+      <td>${esc(displayEntry)}${rankBadge}</td>
+      <td style="color:var(--tx2)">${esc(owgrName)}</td>
+      <td><div class="btns">
+        <button class="btn btn-ghost btn-sm" onclick="openAddAlias('${esc(entryKey)}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAlias('${esc(entryKey)}')">&#10005;</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddAlias(key) {
+  document.getElementById('aliasModalTitle').textContent = key && key !== '-1' ? 'Edit Alias' : 'Add Name Alias';
+  document.getElementById('aKey').value = key || '';
+  if (key && key !== '-1' && aliasMap[key]) {
+    document.getElementById('aEntry').value = key.replace(/\b\w/g,c=>c.toUpperCase());
+    document.getElementById('aOwgr').value = aliasMap[key];
+  } else {
+    document.getElementById('aEntry').value = '';
+    document.getElementById('aOwgr').value = '';
+  }
+  openModal('aliasModal');
+  setTimeout(()=>document.getElementById('aEntry').focus(), 150);
+}
+
+function saveAlias() {
+  const entry = document.getElementById('aEntry').value.trim();
+  const owgr = document.getElementById('aOwgr').value.trim();
+  if (!entry || !owgr) { toast('Both fields are required', '&#10005;'); return; }
+  const oldKey = document.getElementById('aKey').value;
+  if (oldKey && oldKey !== '-1' && oldKey !== normOWGR(entry)) delete aliasMap[oldKey];
+  aliasMap[normOWGR(entry)] = owgr.toLowerCase();
+  clearOwgrCache();
+  closeModal('aliasModal');
+  renderAliases();
+  updateRankColumns();
+  toast(`Alias saved: ${entry} → ${owgr}`, '&#10003;');
+}
+
+function deleteAlias(key) {
+  delete aliasMap[key];
+  clearOwgrCache();
+  renderAliases();
+  updateRankColumns();
+  toast('Alias removed', '&#10003;');
+}
+
+// ============================================================
+// STARTING TIMES — PDF PARSER & RENDERER
+// ============================================================
+let startimesGroups = [];   // [{group, time, tee, players:[]}]
+let startimesFilter = 'all';
+
+const startimesDrop = document.getElementById('startimesDrop');
+startimesDrop.addEventListener('dragover', e => { e.preventDefault(); startimesDrop.classList.add('drag'); });
+startimesDrop.addEventListener('dragleave', () => startimesDrop.classList.remove('drag'));
+startimesDrop.addEventListener('drop', e => {
+  e.preventDefault(); startimesDrop.classList.remove('drag');
+  if (e.dataTransfer.files[0]) loadStartimesPDF(e.dataTransfer.files[0]);
+});
+
+function handleStartimes(e) { if (e.target.files[0]) loadStartimesPDF(e.target.files[0]); }
+
+function clearStartimes(e) {
+  if (e) e.stopPropagation();
+  startimesGroups = [];
+  document.getElementById('startimesInput').value = '';
+  document.getElementById('startimesClearBtn').style.display = 'none';
+  document.getElementById('startimesContent').style.display = 'none';
+  document.getElementById('startimesEmpty').style.display = 'none';
+  setStartimesPill(false, 'No file loaded');
+  toast('Starting Times cleared');
+}
+
+function setStartimesPill(loaded, text) {
+  const pill = document.getElementById('startimesPill');
+  pill.classList.toggle('loaded', loaded);
+  document.getElementById('startimesPillText').textContent = text;
+}
+
+async function loadStartimesPDF(file) {
+  if (typeof pdfjsLib === 'undefined') { toast('PDF library not ready, try again', '&#10005;'); return; }
+  setStartimesPill(false, 'Parsing...');
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    const groups = [];
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      const vp = page.getViewport({scale: 1});
+      const pageWidth = vp.width;
+      const SPLIT = pageWidth * 0.505;  // ~50.5% across = midpoint between two tables
+
+      // Build word list with positions
+      const words = [];
+      for (const item of content.items) {
+        if (!item.str.trim()) continue;
+        words.push({
+          text: item.str.trim(),
+          x0: item.transform[4],
+          top: vp.height - item.transform[5] - item.height,
+          width: item.width,
+          height: item.height
+        });
+      }
+
+      // Cluster by y (4pt buckets)
+      const rowMap = {};
+      for (const w of words) {
+        const y = Math.round(w.top / 4) * 4;
+        if (!rowMap[y]) rowMap[y] = [];
+        rowMap[y].push(w);
+      }
+
+      const SKIP_WORDS = new Set(['STARTING','FROM','TEE','Group','Time','Tee','Name',
+        'Represents','R1','R2','R3','Score','International','Series','Japan','Caledonian',
+        'Golf','Club','Starting','Times','for','Round','Round','1','2','3','4','5','6','7','8',
+        'Korea','Thailand','Japan','USA','Australia','China','Singapore','India','Pakistan',
+        'Peru','Germany','France','Sweden','Spain','Canada','Taiwan','ASIAN','TOUR','Asian','Tour']);
+
+      function isSkip(t) {
+        return SKIP_WORDS.has(t) || /^[A-Z]{2,3}$/.test(t);
+      }
+
+      // Determine name column bounds per table (proportional to page width)
+      const L_NAME_MIN = pageWidth * 0.120, L_NAME_MAX = pageWidth * 0.290;
+      const R_NAME_MIN = pageWidth * 0.625, R_NAME_MAX = pageWidth * 0.800;
+      const L_GRP_MAX  = pageWidth * 0.056;
+      const R_GRP_MIN  = pageWidth * 0.528, R_GRP_MAX = pageWidth * 0.545;
+
+      function getName(rowWords, nMin, nMax) {
+        const nw = rowWords.filter(w => w.x0 >= nMin && w.x0 <= nMax && !isSkip(w.text) && !w.text.match(/^\d+$/) && !w.text.match(/^[\-\+]?\d+\)$/) && w.text !== '(Par)');
+        if (!nw.length) return null;
+        return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').replace(/,\s*$/, '').trim();
+      }
+
+      const leftGroups = {}, rightGroups = {};
+      let leftCur = null, rightCur = null;
+
+      for (const y of Object.keys(rowMap).map(Number).sort((a,b)=>a-b)) {
+        const row = rowMap[y];
+        const lRow = row.filter(w => w.x0 < SPLIT).sort((a,b)=>a.x0-b.x0);
+        const rRow = row.filter(w => w.x0 >= SPLIT).sort((a,b)=>a.x0-b.x0);
+
+        // LEFT
+        const lGrp = lRow.find(w => w.x0 < L_GRP_MAX && /^\d{1,2}$/.test(w.text));
+        const lTime = lRow.find(w => /^\d{2}:\d{2}$/.test(w.text));
+        const lName = getName(lRow, L_NAME_MIN, L_NAME_MAX);
+
+        if (lGrp && lTime) {
+          leftCur = lGrp.text;
+          const teeW = lRow.find(w => w.x0 > L_GRP_MAX && w.x0 < L_NAME_MIN && /^\d+$/.test(w.text));
+          leftGroups[leftCur] = {group: leftCur, time: lTime.text, tee: teeW ? teeW.text : '1', players: []};
+          if (lName) leftGroups[leftCur].players.push(lName);
+        } else if (leftCur && lName) {
+          leftGroups[leftCur].players.push(lName);
+        }
+
+        // RIGHT
+        const rGrp = rRow.find(w => w.x0 >= R_GRP_MIN && w.x0 <= R_GRP_MAX && /^\d{1,2}$/.test(w.text));
+        const rTime = rRow.find(w => /^\d{2}:\d{2}$/.test(w.text) && w.x0 >= SPLIT);
+        const rName = getName(rRow, R_NAME_MIN, R_NAME_MAX);
+
+        if (rGrp && rTime) {
+          rightCur = rGrp.text;
+          const teeW = rRow.find(w => w.x0 > R_GRP_MAX && w.x0 < R_NAME_MIN && /^\d+$/.test(w.text));
+          rightGroups[rightCur] = {group: rightCur, time: rTime.text, tee: teeW ? teeW.text : '10', players: []};
+          if (rName) rightGroups[rightCur].players.push(rName);
+        } else if (rightCur && rName) {
+          rightGroups[rightCur].players.push(rName);
+        }
+      }
+
+      // Merge groups from both tables: same group number AND same time = truly same group (shotgun)
+      const allNums = [...new Set([...Object.keys(leftGroups), ...Object.keys(rightGroups)])].sort((a,b)=>+a-+b);
+      for (const gnum of allNums) {
+        const lg = leftGroups[gnum], rg = rightGroups[gnum];
+        if (lg && rg) {
+          // Different tee times on same group number = actually different groups (non-shotgun format)
+          if (lg.time === rg.time) {
+            // Shotgun — different tees, same time → merge into one group
+            groups.push({group: gnum, time: lg.time, tee: `${lg.tee} & ${rg.tee}`, players: [...lg.players, ...rg.players]});
+          } else {
+            groups.push({group: gnum, time: lg.time, tee: lg.tee, players: lg.players});
+            groups.push({group: gnum, time: rg.time, tee: rg.tee, players: rg.players});
+          }
+        } else if (lg) {
+          groups.push({group: gnum, time: lg.time, tee: lg.tee, players: lg.players});
+        } else {
+          groups.push({group: gnum, time: rg.time, tee: rg.tee, players: rg.players});
+        }
+      }
+    }
+
+    // Sort by time then group number
+    groups.sort((a,b) => {
+      if (a.time !== b.time) return a.time.localeCompare(b.time);
+      return +a.group - +b.group;
+    });
+
+    startimesGroups = groups;
+    const totalPlayers = groups.reduce((s,g) => s + g.players.length, 0);
+    document.getElementById('startimesClearBtn').style.display = 'inline-flex';
+    setStartimesPill(true, `${groups.length} groups · ${totalPlayers} players`);
+    renderStartimes();
+    toast(`${groups.length} groups parsed from PDF`, '&#10003;');
+  } catch(err) {
+    setStartimesPill(false, 'No file loaded');
+    toast('Could not parse PDF: ' + err.message, '&#10005;');
+    console.error(err);
+  }
+}
+
+function setStartimesFilter(f, el) {
+  startimesFilter = f;
+  document.querySelectorAll('#startimesFilterChips .chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  renderStartimes();
+}
+
+function renderStartimes() {
+  const q = (document.getElementById('startimesSearch').value || '').toLowerCase();
+  const rosterNames = new Set(roster.map(p => normMatch(p.name)));
+  const livMap = {};
+  for (const p of roster) livMap[normMatch(p.name)] = p;
+
+  if (!startimesGroups.length) {
+    document.getElementById('startimesContent').style.display = 'none';
+    document.getElementById('startimesEmpty').style.display = 'block';
+    return;
+  }
+  document.getElementById('startimesEmpty').style.display = 'none';
+  document.getElementById('startimesContent').style.display = 'block';
+
+  // Annotate each player
+  const annotated = startimesGroups.map(g => ({
+    ...g,
+    players: g.players.map(name => {
+      const key = normMatch(name);
+      const isLiv = rosterNames.has(key);
+      const livInfo = isLiv ? livMap[key] : null;
+      const isWins = getISWins(name);
+      return {name, isLiv, livInfo, isWins};
+    })
+  }));
+
+  // Stats
+  let livGroupCount = 0, livPlayerCount = 0, champGroupCount = 0;
+  for (const g of annotated) {
+    const hasLiv = g.players.some(p => p.isLiv);
+    const hasChamp = g.players.some(p => p.isWins);
+    if (hasLiv) livGroupCount++;
+    if (hasChamp) champGroupCount++;
+    livPlayerCount += g.players.filter(p => p.isLiv).length;
+  }
+
+  document.getElementById('startimesStats').innerHTML = [
+    ['hi', livGroupCount, 'Groups with LIV'],
+    ['', livPlayerCount, 'LIV Players'],
+    ['', annotated.length, 'Total Groups'],
+    ['', annotated.reduce((s,g)=>s+g.players.length,0), 'Total Players'],
+    ['', champGroupCount, 'Groups with IS Champion']
+  ].map(([c,n,l])=>`<div class="stat ${c}"><div class="stat-n">${n}</div><div class="stat-l">${l}</div></div>`).join('');
+
+  // Filter
+  let filtered = annotated;
+  if (startimesFilter === 'liv') filtered = filtered.filter(g => g.players.some(p => p.isLiv));
+  if (startimesFilter === 'champ') filtered = filtered.filter(g => g.players.some(p => p.isWins));
+  if (q) filtered = filtered.filter(g =>
+    g.group.includes(q) || g.time.includes(q) ||
+    g.players.some(p => p.name.toLowerCase().includes(q))
+  );
+
+  // Render group cards
+  const html = filtered.map(g => {
+    const hasLiv = g.players.some(p => p.isLiv);
+    const playersHtml = g.players.map(p => {
+      const livBadge = p.isLiv
+        ? `<span class="badge b-gold" style="font-size:10px">${esc(p.livInfo.team)}</span>`
+        : '';
+      const champBadge = p.isWins
+        ? `<span title="${esc(p.isWins.tournaments.join(', '))}" style="cursor:help;display:inline-flex;align-items:center;gap:3px"><span style="font-size:13px">&#127942;</span><span style="font-size:11px;font-weight:700;color:var(--gold2)">${p.isWins.wins}</span></span>`
+        : '';
+      const owgrBadge = owgrLoaded && getRank(p.name)
+        ? `<span class="rank-cell ${rankClass(getRank(p.name))}" style="font-size:11px">OWGR ${getRank(p.name)}</span>`
+        : '';
+      return `<div class="group-player-row">
+        <div class="player-name-cell ${p.isLiv?'is-liv':''}">${esc(p.name)}</div>
+        <div class="player-badges">${livBadge}${champBadge}${owgrBadge}</div>
+      </div>`;
+    }).join('');
+
+    return `<div class="group-card ${hasLiv?'has-liv':''}">
+      <div class="group-hd">
+        <span class="group-num">Group ${esc(g.group)}</span>
+        <span class="group-time">&#9201; ${esc(g.time)}</span>
+        <span class="group-tee">Tee ${esc(g.tee)}</span>
+        ${hasLiv ? '<span class="badge b-gold" style="font-size:10px">LIV</span>' : ''}
+        ${g.players.some(p=>p.isWins) ? '<span style="font-size:13px">&#127942;</span>' : ''}
+      </div>
+      <div class="group-players">${playersHtml}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('startimesGroups').innerHTML = html || `<div class="empty"><p>No groups match the current filter.</p></div>`;
+}
+
+function exportStartimesXLSX() {
+  if (!startimesGroups.length) { toast('No data to export', '&#10005;'); return; }
+  const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
+  const livMap = {}; for (const p of roster) livMap[normMatch(p.name)] = p;
+
+  const wb = XLSX.utils.book_new();
+  const data = [['Group','Time','Tee','Player','LIV Player?','Team','OWGR','IS Wins']];
+  for (const g of startimesGroups) {
+    for (const name of g.players) {
+      const key = normMatch(name);
+      const isLiv = rosterNames.has(key);
+      const livInfo = isLiv ? livMap[key] : null;
+      const isW = getISWins(name);
+      data.push([
+        g.group, g.time, g.tee, name,
+        isLiv ? 'Yes' : 'No',
+        isLiv ? livInfo.team : '',
+        owgrLoaded ? (getRank(name)||'—') : '—',
+        isW ? isW.wins : 0
+      ]);
+    }
+  }
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{wch:7},{wch:8},{wch:7},{wch:26},{wch:10},{wch:22},{wch:8},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Starting_Times');
+  XLSX.writeFile(wb, 'Starting_Times.xlsx');
+  toast('Excel downloaded', '&#128190;');
+}
+
+function exportStartimesPDF() {
+  if (!startimesGroups.length) { toast('No data to export', '&#10005;'); return; }
+  const {jsPDF} = window.jspdf;
+  if (!jsPDF) { toast('PDF library not ready', '&#10005;'); return; }
+  const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
+  const livMap = {}; for (const p of roster) livMap[normMatch(p.name)] = p;
+
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  doc.setFillColor(201,168,76);
+  doc.rect(0,0,210,16,'F');
+  doc.setTextColor(7,8,11); doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text('Starting Times — LIV Player Highlights', 12, 11);
+  doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('Generated: ' + new Date().toLocaleString(), 12, 23);
+
+  doc.autoTable({
+    startY: 28,
+    head:[['Group','Time','Tee','Player','LIV?','Team','OWGR','IS Wins']],
+    body: startimesGroups.flatMap(g => g.players.map(name => {
+      const key = normMatch(name);
+      const isLiv = rosterNames.has(key);
+      const livInfo = isLiv ? livMap[key] : null;
+      const isW = getISWins(name);
+      return [g.group, g.time, g.tee, name,
+        isLiv?'✓':'', isLiv?livInfo.team:'',
+        owgrLoaded?(getRank(name)||'—'):'—', isW?isW.wins:0];
+    })),
+    styles:{fontSize:7.5, cellPadding:2},
+    headStyles:{fillColor:[201,168,76], textColor:[7,8,11], fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[248,247,244]},
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.row.raw[4] === '✓') {
+        data.row.cells[3].styles.fontStyle = 'bold';
+        data.row.cells[3].styles.textColor = [180,140,40];
+      }
+    },
+    columnStyles:{0:{cellWidth:12},1:{cellWidth:13},2:{cellWidth:10},4:{cellWidth:8},6:{cellWidth:12},7:{cellWidth:12}},
+    margin:{left:10,right:10}
+  });
+
+  doc.save('Starting_Times.pdf');
+  toast('PDF downloaded', '&#128196;');
+}
+
+window.addEventListener('load', () => {
+  if (typeof pdfjsLib !== 'undefined')
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+  // ── Boot from localStorage ──────────────────────────────
+  // Roster: load saved version (falls back to built-in if nothing saved)
+  const rosterLoaded = loadRosterFromStorage();
+  if (rosterLoaded) {
+    console.log('Roster loaded from storage:', roster.length, 'players');
+  }
+
+  // IS Winners: load saved override
+  const savedISWins = loadISWinsFromStorage();
+  if (savedISWins) {
+    isWinsOverride = savedISWins;
+    isWinsUploaded = true;
+    console.log('IS Winners loaded from storage:', Object.keys(savedISWins).length, 'players');
+  }
+
+  // Show a status indicator in the upload panel if data is persisted
+  showPersistenceBanner(rosterLoaded, !!savedISWins);
+});
+
+function showPersistenceBanner(rosterSaved, isWinsSaved) {
+  if (!rosterSaved && !isWinsSaved) return;
+  const parts = [];
+  if (rosterSaved) parts.push(`LIV Roster (${roster.length} players)`);
+  if (isWinsSaved) parts.push(`IS Winners (${Object.keys(isWinsOverride).length} players)`);
+  const banner = document.createElement('div');
+  banner.style.cssText = 'background:rgba(78,200,122,.08);border:1px solid rgba(78,200,122,.2);border-radius:8px;padding:9px 14px;font-size:12px;color:#6ee09a;margin-bottom:1rem;display:flex;align-items:center;gap:8px;';
+  banner.innerHTML = `<span style="font-size:14px">&#10003;</span> Saved data loaded: ${parts.join(' · ')}`;
+  const uploadPanel = document.getElementById('panel-upload');
+  uploadPanel.insertBefore(banner, uploadPanel.firstChild);
+  setTimeout(() => banner.style.opacity = '0', 4000);
+  setTimeout(() => banner.remove(), 4500);
+  banner.style.transition = 'opacity 0.5s';
+}
+</script>
+</body>
+</html>
