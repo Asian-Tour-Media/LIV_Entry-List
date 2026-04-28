@@ -68,6 +68,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .player-name-cell{font-size:13px;color:var(--tx);flex:1;min-width:140px}
 .player-name-cell.is-liv{color:var(--gold2);font-weight:600}
 .player-badges{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.sort-btn-row{display:flex;align-items:center;gap:5px}
 .owgr-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .owgr-upload-text{font-size:12px;color:var(--tx2);text-align:left}
 .owgr-upload-text strong{color:var(--tx)}
@@ -183,12 +184,133 @@ tr:hover td{background:var(--surf2)}
 .empty-ic{font-size:32px;margin-bottom:.75rem;opacity:.5}
 .empty p{font-size:13px}
 
+/* ── MOBILE ────────────────────────────────────────────── */
 @media(max-width:640px){
-  .main{padding:1rem}
-  .topbar,.nav{padding:0 1rem}
+
+  /* Layout */
+  .main{padding:.75rem}
+  .topbar{padding:0 1rem;height:54px}
+  .logo-sub{display:none}
+  .logo-name{font-size:13px}
+  .logo-badge{width:32px;height:32px;font-size:11px}
+  .admin-pill{padding:5px 10px;font-size:11px}
+
+  /* Nav — horizontally scrollable pill row */
+  .nav{padding:0;overflow-x:auto;-webkit-overflow-scrolling:touch;
+       scrollbar-width:none;gap:0;border-bottom:1px solid var(--bdr)}
+  .nav::-webkit-scrollbar{display:none}
+  .tab{padding:11px 14px;font-size:11px;white-space:nowrap;flex-shrink:0}
+
+  /* Cards */
+  .card{padding:1rem;margin-bottom:1rem}
+  .card-hd{flex-direction:column;align-items:flex-start;gap:.6rem;margin-bottom:1rem}
+  .card-title{font-size:13px}
+
+  /* Drop zones */
+  .drop-zone{padding:1.75rem 1rem}
+  .drop-icon{font-size:28px;margin-bottom:.4rem}
+  .drop-title{font-size:13px}
+  .drop-sub{font-size:11px}
+  .owgr-upload{padding:.75rem 1rem;gap:.5rem}
+  .owgr-upload-text{font-size:11px}
+
+  /* Stats grid — 2 col on mobile */
+  .stats{grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:1rem}
+  .stat{padding:1rem .75rem}
+  .stat-n{font-size:24px}
+  .stat-l{font-size:9px;letter-spacing:.8px}
+
+  /* Tables — key columns only, horizontal scroll as fallback */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;
+            border-radius:6px;margin:0 -.25rem}
+  table{min-width:320px;font-size:12px}
+  th{padding:7px 10px;font-size:9px}
+  td{padding:7px 10px}
+  .rn{width:24px;font-size:10px}
+
+  /* Buttons */
+  .btn{padding:7px 12px;font-size:11px}
+  .btn-gold{width:100%}
+  .btns{flex-direction:column;width:100%}
+  .btns .btn{width:100%;justify-content:center}
+  .btn-sm{width:auto !important}
+
+  /* Forms */
   .frow{grid-template-columns:1fr}
-  .tab{padding:11px 12px;font-size:12px}
+  .fg input{font-size:14px} /* prevent iOS zoom on focus */
+
+  /* Search */
+  .srch{font-size:14px} /* prevent iOS zoom */
+
+  /* Chips */
+  .chips{gap:5px}
+  .chip{font-size:10px;padding:4px 9px}
+
+  /* Filter bar */
+  .filter-bar{flex-direction:column;align-items:flex-start;gap:.6rem;padding:.75rem}
+  .filter-bar label{font-size:11px}
+  .topn-sel{font-size:12px;padding:6px 10px;width:100%}
+  .filter-count{margin-left:0}
+
+  /* Hero */
+  .match-hero{padding:1.1rem}
+  .match-hero::after{font-size:60px;right:1rem}
+  .hero-title{font-size:16px}
+  .hero-sub{font-size:11px}
+
+  /* Modals */
+  .modal{padding:1.25rem;width:100%;max-height:95vh;border-radius:14px 14px 0 0;
+         position:fixed;bottom:0;left:0;right:0;margin:0}
+  .overlay.open{align-items:flex-end;padding:0}
+  .modal-title{font-size:15px}
+  .pw-box{font-size:18px}
+
+  /* Starting times groups */
+  .group-hd{padding:.6rem .75rem;gap:.5rem;flex-wrap:wrap}
+  .group-num{font-size:15px}
+  .group-players{padding:.35rem .75rem}
+  .group-player-row{gap:.5rem;padding:.4rem 0;flex-wrap:wrap}
+  .player-name-cell{font-size:12px;min-width:0;width:100%}
+  .player-badges{gap:4px;flex-wrap:wrap}
+
+  /* Starting times filter card — stack everything vertically */
+  #panel-startimes .card[style*="padding:1rem"]{padding:.75rem}
+  #panel-startimes .card > div{flex-direction:column;align-items:stretch;gap:.6rem}
+  #panel-startimes .srch-wrap{min-width:0}
+
+  /* Sort buttons — full width row */
+  .sort-btn-row{display:flex;width:100%;gap:6px}
+  .sort-btn-row .btn{flex:1;justify-content:center}
+
+  /* Danger zone */
+  .danger-zone{padding:1rem}
+
+  /* Owgr pill in card header */
+  .owgr-pill{font-size:10px;padding:3px 8px}
+
+  /* File pill */
+  .file-pill{font-size:11px;padding:8px 11px}
+
+  /* IS Winners upload button stack */
+  #panel-roster .btns{flex-direction:column}
+  #panel-roster .btns .btn{width:100%;justify-content:center}
+}
+
+/* ── SMALL PHONES (≤380px) ─────────────────────────────── */
+@media(max-width:380px){
   .stats{grid-template-columns:repeat(2,1fr)}
+  .tab{padding:10px 11px;font-size:10px}
+  .hero-title{font-size:14px}
+  .stat-n{font-size:20px}
+}
+
+/* ── TOUCH IMPROVEMENTS ────────────────────────────────── */
+@media(hover:none){
+  /* Bigger tap targets on touch devices */
+  .tab{min-height:44px;display:flex;align-items:center}
+  .btn{min-height:44px}
+  .chip{min-height:36px;display:inline-flex;align-items:center}
+  .admin-pill{min-height:36px}
 }
 </style>
 </head>
@@ -408,7 +530,7 @@ tr:hover td{background:var(--surf2)}
         &#128161;&nbsp; <strong>Importing replaces the current roster entirely.</strong> Use "Clear Roster" below before importing a new season file so old names don't carry over.
       </div>
       <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-        <div class="srch-wrap" style="flex:1;margin-bottom:0;min-width:180px">
+        <div class="srch-wrap" style="flex:1;margin-bottom:0;min-width:0">
           <span class="srch-ic">&#128269;</span>
           <input type="text" class="srch" id="rosterSearch" placeholder="Search by name or team..." oninput="renderRoster()">
         </div>
@@ -465,11 +587,11 @@ tr:hover td{background:var(--surf2)}
         Upload the round's Starting Times PDF from the Asian Tour / International Series. The app will parse the groups, identify LIV players in each group, and flag International Series champions.
       </div>
       <div class="owgr-upload" id="startimesDrop" style="border-color:rgba(56,189,248,.3);background:rgba(56,189,248,.04)">
-        <input type="file" id="startimesInput" accept=".pdf" onchange="handleStartimes(event)">
+        <input type="file" id="startimesInput" accept=".pdf,.xlsx,.xls" onchange="handleStartimes(event)">
         <span style="font-size:20px;opacity:.7">&#128196;</span>
         <div class="owgr-upload-text">
-          <strong>Drop Starting Times PDF here</strong><br>
-          Asian Tour / International Series format
+          <strong>Drop Starting Times file here</strong><br>
+          PDF &nbsp;&middot;&nbsp; Excel (.xlsx / .xls)
         </div>
         <button class="btn btn-ghost btn-sm" id="startimesClearBtn" style="display:none;position:relative;z-index:2" onclick="clearStartimes(event)">&#10005; Clear</button>
       </div>
@@ -486,19 +608,30 @@ tr:hover td{background:var(--surf2)}
 
       <!-- Filter bar -->
       <div class="card" style="padding:1rem 1.5rem">
-        <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-          <div class="srch-wrap" style="flex:1;margin-bottom:0;min-width:180px">
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          <!-- Row 1: search -->
+          <div class="srch-wrap" style="margin-bottom:0">
             <span class="srch-ic">&#128269;</span>
             <input type="text" class="srch" id="startimesSearch" placeholder="Search player or group..." oninput="renderStartimes()">
           </div>
-          <div class="chips" id="startimesFilterChips" style="margin:0">
-            <div class="chip on" data-sf="all"   onclick="setStartimesFilter('all',this)">All Groups</div>
-            <div class="chip"    data-sf="liv"   onclick="setStartimesFilter('liv',this)">&#9733; LIV Groups</div>
-            <div class="chip"    data-sf="champ" onclick="setStartimesFilter('champ',this)">&#127942; IS Champions</div>
+          <!-- Row 2: filter chips + sort buttons -->
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+            <div class="chips" id="startimesFilterChips" style="margin:0;flex:1">
+              <div class="chip on" data-sf="all"   onclick="setStartimesFilter('all',this)">All Groups</div>
+              <div class="chip"    data-sf="liv"   onclick="setStartimesFilter('liv',this)">&#9733; LIV</div>
+              <div class="chip"    data-sf="champ" onclick="setStartimesFilter('champ',this)">&#127942; Champions</div>
+            </div>
+            <div class="sort-btn-row" style="flex-shrink:0">
+              <span style="font-size:11px;color:var(--tx3);align-self:center;white-space:nowrap">Sort:</span>
+              <button class="btn btn-gold btn-sm" id="sortAscBtn"  onclick="setStartimesSort('asc')"  title="Group number ascending">&#8593; 1&#8594;48</button>
+              <button class="btn btn-ghost btn-sm" id="sortDescBtn" onclick="setStartimesSort('desc')" title="Group number descending">&#8595; 48&#8594;1</button>
+              <button class="btn btn-ghost btn-sm" id="sortTimeBtn" onclick="setStartimesSort('time')" title="Sort by tee time">&#9201; Time</button>
+            </div>
           </div>
-          <div class="btns">
-            <button class="btn btn-ghost" onclick="exportStartimesXLSX()">&#128190; Excel</button>
-            <button class="btn btn-ghost" onclick="exportStartimesPDF()">&#128196; PDF</button>
+          <!-- Row 3: export buttons -->
+          <div style="display:flex;gap:7px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="exportStartimesXLSX()">&#128190; Excel</button>
+            <button class="btn btn-ghost btn-sm" onclick="exportStartimesPDF()">&#128196; PDF</button>
           </div>
         </div>
       </div>
@@ -2139,16 +2272,28 @@ function deleteAlias(key) {
 // ============================================================
 let startimesGroups = [];   // [{group, time, tee, players:[]}]
 let startimesFilter = 'all';
+let startimesSort = 'asc';  // 'asc' | 'desc' | 'time'
 
 const startimesDrop = document.getElementById('startimesDrop');
 startimesDrop.addEventListener('dragover', e => { e.preventDefault(); startimesDrop.classList.add('drag'); });
 startimesDrop.addEventListener('dragleave', () => startimesDrop.classList.remove('drag'));
 startimesDrop.addEventListener('drop', e => {
   e.preventDefault(); startimesDrop.classList.remove('drag');
-  if (e.dataTransfer.files[0]) loadStartimesPDF(e.dataTransfer.files[0]);
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') loadStartimesPDF(file);
+  else if (['xlsx','xls'].includes(ext)) loadStartimesXLSX(file);
+  else toast('Please drop a PDF or Excel file', '&#10005;');
 });
 
-function handleStartimes(e) { if (e.target.files[0]) loadStartimesPDF(e.target.files[0]); }
+function handleStartimes(e) {
+  if (!e.target.files[0]) return;
+  const file = e.target.files[0];
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') loadStartimesPDF(file);
+  else loadStartimesXLSX(file);
+}
 
 function clearStartimes(e) {
   if (e) e.stopPropagation();
@@ -2167,134 +2312,200 @@ function setStartimesPill(loaded, text) {
   document.getElementById('startimesPillText').textContent = text;
 }
 
+// ── EXCEL PARSER ─────────────────────────────────────────────
+function loadStartimesXLSX(file) {
+  setStartimesPill(false, 'Parsing...');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false});
+
+      // Find header row containing "Group" and "Name"
+      let headerRow = -1;
+      for (let r = 0; r < Math.min(rows.length, 10); r++) {
+        const vals = rows[r].map(v => String(v||'').toLowerCase().trim());
+        if (vals.includes('group') && vals.includes('name')) { headerRow = r; break; }
+      }
+      if (headerRow < 0) { toast('Could not find header row in Excel file', '&#10005;'); return; }
+
+      const hdr = rows[headerRow].map(v => String(v||'').toLowerCase().trim());
+      // Find all occurrences of each column
+      const allOf = name => hdr.map((v,i) => v===name ? i : -1).filter(i=>i>=0);
+      const grpCols  = allOf('group'),  timeCols = allOf('time');
+      const nameCols = allOf('name');
+      const teeCols  = allOf('tee');
+
+      const L_GRP = grpCols[0],  R_GRP  = grpCols[1];
+      const L_TIME = timeCols[0], R_TIME = timeCols[1];
+      const L_NAME = nameCols[0], R_NAME = nameCols[1];
+      const L_TEE  = teeCols[0],  R_TEE  = teeCols[1];
+
+      const groups = {};
+      let lastL = null, lastR = null;
+
+      const cleanName = v => {
+        const s = String(v||'').trim().replace(/,\s*$/, '');
+        return (!s || s.toLowerCase() === 'nan' || ['group','name','time','tee','represents'].includes(s.toLowerCase())) ? null : s;
+      };
+      const cleanTime = v => { const s = String(v||''); return s.length >= 5 ? s.slice(0,5) : s; };
+      const isGroupNum = v => v !== undefined && v !== null && v !== '' && !isNaN(String(v).replace('.0','')) && String(v).trim() !== '';
+
+      for (let r = headerRow + 1; r < rows.length; r++) {
+        const row = rows[r];
+
+        // LEFT
+        const lg = row[L_GRP], lname = cleanName(row[L_NAME]);
+        if (isGroupNum(lg)) {
+          const gnum = String(Math.round(parseFloat(String(lg))));
+          const tval = cleanTime(row[L_TIME]);
+          const te   = L_TEE !== undefined ? String(row[L_TEE]||'').split('.')[0] : '1';
+          groups[gnum] = {group:gnum, time:tval, tee:te, players:[]};
+          lastL = gnum;
+          if (lname) groups[gnum].players.push(lname);
+        } else if (lastL && lname) {
+          groups[lastL].players.push(lname);
+        }
+
+        // RIGHT
+        if (R_GRP !== undefined) {
+          const rg = row[R_GRP], rname = cleanName(row[R_NAME]);
+          if (isGroupNum(rg)) {
+            const gnum = String(Math.round(parseFloat(String(rg))));
+            const tval = cleanTime(row[R_TIME]);
+            const te   = R_TEE !== undefined ? String(row[R_TEE]||'').split('.')[0] : '10';
+            groups[gnum] = {group:gnum, time:tval, tee:te, players:[]};
+            lastR = gnum;
+            if (rname) groups[gnum].players.push(rname);
+          } else if (lastR && rname) {
+            groups[lastR].players.push(rname);
+          }
+        }
+      }
+
+      finishStartimes(Object.values(groups), file.name);
+    } catch(err) {
+      setStartimesPill(false, 'No file loaded');
+      toast('Could not parse Excel: ' + err.message, '&#10005;');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── PDF PARSER ───────────────────────────────────────────────
 async function loadStartimesPDF(file) {
   if (typeof pdfjsLib === 'undefined') { toast('PDF library not ready, try again', '&#10005;'); return; }
   setStartimesPill(false, 'Parsing...');
   try {
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-    const groups = [];
+    const allGroups = {};
 
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page = await pdf.getPage(pageNum);
+      const page    = await pdf.getPage(pageNum);
       const content = await page.getTextContent();
-      const vp = page.getViewport({scale: 1});
-      const pageWidth = vp.width;
-      const SPLIT = pageWidth * 0.505;  // ~50.5% across = midpoint between two tables
+      const vp      = page.getViewport({scale:1});
+      const W       = vp.width;
+      const SPLIT   = W * 0.505;
 
-      // Build word list with positions
-      const words = [];
-      for (const item of content.items) {
-        if (!item.str.trim()) continue;
-        words.push({
-          text: item.str.trim(),
-          x0: item.transform[4],
-          top: vp.height - item.transform[5] - item.height,
-          width: item.width,
-          height: item.height
-        });
+      const L_GRP_MAX  = W * 0.058;
+      const L_NAME_MIN = W * 0.118;
+      const L_NAME_MAX = W * 0.345;
+      const R_GRP_MIN  = W * 0.515;
+      const R_GRP_MAX  = W * 0.545;
+      const R_NAME_MIN = W * 0.596;
+      const R_NAME_MAX = W * 0.815;
+
+      const SKIP = new Set(['STARTING','FROM','TEE','Group','Time','Tee','Name','Represents',
+        'MORNING','AFTERNOON','SESSION','Singapore','Open','Sentosa','Golf','Club,','The',
+        'Serapong','Starting','Times','for','Round','International','Series','Japan',
+        'Caledonian','Club','Asian','Tour','ASIAN','TOUR']);
+
+      function isSkip(t) {
+        if (SKIP.has(t)) return true;
+        if (/^\d+$/.test(t)) return true;         // pure integers (1, 10, 68...)
+        if (/^\d{2}:\d{2}$/.test(t)) return true; // times
+        if (/^[\-\+]\d+/.test(t)) return true;    // scores like -4, +2
+        return false;
       }
 
-      // Cluster by y (4pt buckets)
+      function getName(rowWords, xmin, xmax) {
+        const nw = rowWords.filter(w => w.x0 >= xmin && w.x0 <= xmax && !isSkip(w.text));
+        if (!nw.length) return null;
+        return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').replace(/,\s*$/,'').trim();
+      }
+
+      // Build word list
+      const words = [];
+      for (const item of content.items) {
+        const t = item.str.trim();
+        if (!t) continue;
+        words.push({text:t, x0:item.transform[4], top: vp.height - item.transform[5] - item.height});
+      }
+
+      // Cluster into y-rows (3pt buckets)
       const rowMap = {};
       for (const w of words) {
-        const y = Math.round(w.top / 4) * 4;
+        const y = Math.round(w.top / 3) * 3;
         if (!rowMap[y]) rowMap[y] = [];
         rowMap[y].push(w);
       }
+      const sortedYs = Object.keys(rowMap).map(Number).sort((a,b)=>a-b);
 
-      const SKIP_WORDS = new Set(['STARTING','FROM','TEE','Group','Time','Tee','Name',
-        'Represents','R1','R2','R3','Score','International','Series','Japan','Caledonian',
-        'Golf','Club','Starting','Times','for','Round','Round','1','2','3','4','5','6','7','8',
-        'Korea','Thailand','Japan','USA','Australia','China','Singapore','India','Pakistan',
-        'Peru','Germany','France','Sweden','Spain','Canada','Taiwan','ASIAN','TOUR','Asian','Tour']);
-
-      function isSkip(t) {
-        return SKIP_WORDS.has(t) || /^[A-Z]{2,3}$/.test(t);
-      }
-
-      // Determine name column bounds per table (proportional to page width)
-      const L_NAME_MIN = pageWidth * 0.120, L_NAME_MAX = pageWidth * 0.290;
-      const R_NAME_MIN = pageWidth * 0.625, R_NAME_MAX = pageWidth * 0.800;
-      const L_GRP_MAX  = pageWidth * 0.056;
-      const R_GRP_MIN  = pageWidth * 0.528, R_GRP_MAX = pageWidth * 0.545;
-
-      function getName(rowWords, nMin, nMax) {
-        const nw = rowWords.filter(w => w.x0 >= nMin && w.x0 <= nMax && !isSkip(w.text) && !w.text.match(/^\d+$/) && !w.text.match(/^[\-\+]?\d+\)$/) && w.text !== '(Par)');
-        if (!nw.length) return null;
-        return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').replace(/,\s*$/, '').trim();
-      }
-
-      const leftGroups = {}, rightGroups = {};
-      let leftCur = null, rightCur = null;
-
-      for (const y of Object.keys(rowMap).map(Number).sort((a,b)=>a-b)) {
-        const row = rowMap[y];
-        const lRow = row.filter(w => w.x0 < SPLIT).sort((a,b)=>a.x0-b.x0);
-        const rRow = row.filter(w => w.x0 >= SPLIT).sort((a,b)=>a.x0-b.x0);
-
-        // LEFT
-        const lGrp = lRow.find(w => w.x0 < L_GRP_MAX && /^\d{1,2}$/.test(w.text));
-        const lTime = lRow.find(w => /^\d{2}:\d{2}$/.test(w.text));
-        const lName = getName(lRow, L_NAME_MIN, L_NAME_MAX);
-
-        if (lGrp && lTime) {
-          leftCur = lGrp.text;
-          const teeW = lRow.find(w => w.x0 > L_GRP_MAX && w.x0 < L_NAME_MIN && /^\d+$/.test(w.text));
-          leftGroups[leftCur] = {group: leftCur, time: lTime.text, tee: teeW ? teeW.text : '1', players: []};
-          if (lName) leftGroups[leftCur].players.push(lName);
-        } else if (leftCur && lName) {
-          leftGroups[leftCur].players.push(lName);
-        }
-
-        // RIGHT
-        const rGrp = rRow.find(w => w.x0 >= R_GRP_MIN && w.x0 <= R_GRP_MAX && /^\d{1,2}$/.test(w.text));
-        const rTime = rRow.find(w => /^\d{2}:\d{2}$/.test(w.text) && w.x0 >= SPLIT);
-        const rName = getName(rRow, R_NAME_MIN, R_NAME_MAX);
-
-        if (rGrp && rTime) {
-          rightCur = rGrp.text;
-          const teeW = rRow.find(w => w.x0 > R_GRP_MAX && w.x0 < R_NAME_MIN && /^\d+$/.test(w.text));
-          rightGroups[rightCur] = {group: rightCur, time: rTime.text, tee: teeW ? teeW.text : '10', players: []};
-          if (rName) rightGroups[rightCur].players.push(rName);
-        } else if (rightCur && rName) {
-          rightGroups[rightCur].players.push(rName);
-        }
-      }
-
-      // Merge groups from both tables: same group number AND same time = truly same group (shotgun)
-      const allNums = [...new Set([...Object.keys(leftGroups), ...Object.keys(rightGroups)])].sort((a,b)=>+a-+b);
-      for (const gnum of allNums) {
-        const lg = leftGroups[gnum], rg = rightGroups[gnum];
-        if (lg && rg) {
-          // Different tee times on same group number = actually different groups (non-shotgun format)
-          if (lg.time === rg.time) {
-            // Shotgun — different tees, same time → merge into one group
-            groups.push({group: gnum, time: lg.time, tee: `${lg.tee} & ${rg.tee}`, players: [...lg.players, ...rg.players]});
-          } else {
-            groups.push({group: gnum, time: lg.time, tee: lg.tee, players: lg.players});
-            groups.push({group: gnum, time: rg.time, tee: rg.tee, players: rg.players});
+      function processSide(side, xmin, xmax) {
+        // Step 1: find all anchor rows (group number + tee time on same row)
+        const anchors = []; // [{y, gnum, time, tee}]
+        for (const y of sortedYs) {
+          const row = rowMap[y];
+          const sr  = row.filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
+          const gw  = side==='L'
+            ? sr.find(w => w.x0 < L_GRP_MAX && /^\d{1,2}$/.test(w.text))
+            : sr.find(w => w.x0 >= R_GRP_MIN && w.x0 <= R_GRP_MAX && /^\d{1,2}$/.test(w.text));
+          const tw  = sr.find(w => /^\d{2}:\d{2}$/.test(w.text));
+          if (gw && tw) {
+            const teeW = side==='L'
+              ? sr.find(w => w.x0 > L_GRP_MAX && w.x0 < L_NAME_MIN && /^\d+$/.test(w.text))
+              : sr.find(w => w.x0 > R_GRP_MAX && w.x0 < R_NAME_MIN && /^\d+$/.test(w.text));
+            anchors.push({y, gnum:gw.text, time:tw.text, tee:teeW?teeW.text:(side==='L'?'1':'10')});
           }
-        } else if (lg) {
-          groups.push({group: gnum, time: lg.time, tee: lg.tee, players: lg.players});
-        } else {
-          groups.push({group: gnum, time: rg.time, tee: rg.tee, players: rg.players});
+        }
+        if (!anchors.length) return;
+
+        // Step 2: compute midpoint boundaries between consecutive anchors
+        // Each name row is assigned to the group whose anchor interval [start, end) contains it
+        const startBounds = anchors.map((a, i) =>
+          i === 0 ? 0 : (anchors[i-1].y + a.y) / 2
+        );
+        const endBounds = anchors.map((a, i) =>
+          i+1 < anchors.length ? (a.y + anchors[i+1].y) / 2 : Infinity
+        );
+
+        // Initialise group entries
+        for (const a of anchors) {
+          allGroups[a.gnum] = {group:a.gnum, time:a.time, tee:a.tee, players:[]};
+        }
+
+        // Step 3: assign every name row to its group by midpoint interval
+        for (const y of sortedYs) {
+          const rw   = rowMap[y].filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
+          const name = getName(rw, xmin, xmax);
+          if (!name) continue;
+          for (let i = 0; i < anchors.length; i++) {
+            if (y >= startBounds[i] && y < endBounds[i]) {
+              if (!allGroups[anchors[i].gnum].players.includes(name))
+                allGroups[anchors[i].gnum].players.push(name);
+              break;
+            }
+          }
         }
       }
+
+      processSide('L', L_NAME_MIN, L_NAME_MAX);
+      processSide('R', R_NAME_MIN, R_NAME_MAX);
     }
 
-    // Sort by time then group number
-    groups.sort((a,b) => {
-      if (a.time !== b.time) return a.time.localeCompare(b.time);
-      return +a.group - +b.group;
-    });
-
-    startimesGroups = groups;
-    const totalPlayers = groups.reduce((s,g) => s + g.players.length, 0);
-    document.getElementById('startimesClearBtn').style.display = 'inline-flex';
-    setStartimesPill(true, `${groups.length} groups · ${totalPlayers} players`);
-    renderStartimes();
-    toast(`${groups.length} groups parsed from PDF`, '&#10003;');
+    finishStartimes(Object.values(allGroups), file.name);
   } catch(err) {
     setStartimesPill(false, 'No file loaded');
     toast('Could not parse PDF: ' + err.message, '&#10005;');
@@ -2302,10 +2513,42 @@ async function loadStartimesPDF(file) {
   }
 }
 
+function finishStartimes(groups, filename) {
+  // Sort by group number ascending by default
+  groups.sort((a,b) => parseInt(a.group) - parseInt(b.group));
+  startimesGroups = groups;
+  startimesSort = 'asc';
+  // Highlight the default sort button
+  ['sortAscBtn','sortDescBtn','sortTimeBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('btn-gold');
+  });
+  const asc = document.getElementById('sortAscBtn');
+  if (asc) asc.classList.add('btn-gold');
+  const totalPlayers = groups.reduce((s,g) => s + g.players.length, 0);
+  document.getElementById('startimesClearBtn').style.display = 'inline-flex';
+  setStartimesPill(true, `${groups.length} groups · ${totalPlayers} players`);
+  renderStartimes();
+  toast(`${groups.length} groups parsed from ${filename.split('.').pop().toUpperCase()}`, '&#10003;');
+}
+
 function setStartimesFilter(f, el) {
   startimesFilter = f;
   document.querySelectorAll('#startimesFilterChips .chip').forEach(c => c.classList.remove('on'));
   el.classList.add('on');
+  renderStartimes();
+}
+
+function setStartimesSort(s) {
+  startimesSort = s;
+  // Update button highlights
+  ['sortAscBtn','sortDescBtn','sortTimeBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('btn-gold');
+  });
+  const activeId = s === 'asc' ? 'sortAscBtn' : s === 'desc' ? 'sortDescBtn' : 'sortTimeBtn';
+  const activeEl = document.getElementById(activeId);
+  if (activeEl) activeEl.classList.add('btn-gold');
   renderStartimes();
 }
 
@@ -2361,6 +2604,19 @@ function renderStartimes() {
     g.group.includes(q) || g.time.includes(q) ||
     g.players.some(p => p.name.toLowerCase().includes(q))
   );
+
+  // Sort
+  if (startimesSort === 'asc') {
+    filtered.sort((a,b) => parseInt(a.group) - parseInt(b.group));
+  } else if (startimesSort === 'desc') {
+    filtered.sort((a,b) => parseInt(b.group) - parseInt(a.group));
+  } else {
+    // Sort by time, then group number within same time
+    filtered.sort((a,b) => {
+      if (a.time !== b.time) return a.time.localeCompare(b.time);
+      return parseInt(a.group) - parseInt(b.group);
+    });
+  }
 
   // Render group cards
   const html = filtered.map(g => {
