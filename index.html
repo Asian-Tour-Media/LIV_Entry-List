@@ -432,6 +432,7 @@ tr:hover td{background:var(--surf2)}
             <thead>
               <tr>
                 <th>#</th><th>LIV Player</th><th>Team</th>
+                <th id="livNatHead" style="display:none">Country</th>
                 <th class="rank-col" id="livRankHead" style="display:none">OWGR</th>
                 <th title="International Series career wins">IS Wins</th>
               </tr>
@@ -457,11 +458,30 @@ tr:hover td{background:var(--surf2)}
             <thead>
               <tr>
                 <th>#</th><th>Player Name</th>
+                <th id="nonLivNatHead" style="display:none">Country</th>
                 <th class="rank-col" id="nonLivRankHead" style="display:none">OWGR</th>
                 <th title="International Series career wins">IS Wins</th>
               </tr>
             </thead>
             <tbody id="nonLivBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Country Breakdown — shown when OWGR with nationalities is loaded -->
+      <div class="card" id="countryBreakdownCard" style="display:none">
+        <div class="card-hd">
+          <div class="card-title"><span class="dot" style="background:#38bdf8"></span>Country Breakdown</div>
+          <span id="countryBreakdownCount" style="font-size:11px;color:var(--tx3)"></span>
+        </div>
+        <div class="chips" id="countryFilterChips">
+          <div class="chip on" onclick="setCountryFilter('all',this)">All</div>
+          <div class="chip" onclick="setCountryFilter('liv',this)">LIV only</div>
+          <div class="chip" onclick="setCountryFilter('nonliv',this)">Non-LIV only</div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Country</th><th style="text-align:right">Players</th><th style="text-align:right">LIV</th><th style="text-align:right">Non-LIV</th></tr></thead>
+            <tbody id="countryBreakdownBody"></tbody>
           </table>
         </div>
       </div>
@@ -846,6 +866,7 @@ let pendingImportData = null;
 // ============================================================
 const LS_ROSTER   = 'liv_dashboard_roster_v1';
 const LS_IS_WINS  = 'liv_dashboard_iswins_v1';
+const LS_ALIAS    = 'liv_dashboard_aliases_v1';
 
 function saveRosterToStorage() {
   try { localStorage.setItem(LS_ROSTER, JSON.stringify(roster)); } catch(e) {}
@@ -876,6 +897,21 @@ function loadISWinsFromStorage() {
 
 function clearISWinsFromStorage() {
   try { localStorage.removeItem(LS_IS_WINS); } catch(e) {}
+}
+
+function saveAliasToStorage() {
+  try { localStorage.setItem(LS_ALIAS, JSON.stringify(aliasMap)); } catch(e) {}
+}
+
+function loadAliasFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_ALIAS);
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (Object.keys(data).length) return data;
+    }
+  } catch(e) {}
+  return null;
 }
 
 // ============================================================
@@ -1095,7 +1131,8 @@ function downloadISTemplate(e) {
 
 // OWGR: map of normalised name → rank number
 let owgrMap = {};        // key: norm(name), value: rank (integer)
-let owgrRawList = [];    // [{name, rank}] — full list for fuzzy fallback
+let owgrRawList = [];    // [{name, rank, ctry}] — full list for fuzzy fallback
+let owgrNatMap = {};     // key: norm(name), value: country code (e.g. "SGP")
 let owgrLoaded = false;
 let owgrPlayerCount = 0;
 
@@ -1184,7 +1221,7 @@ function handleOWGR(e) { if (e.target.files[0]) loadOWGRFile(e.target.files[0]);
 
 function clearOWGR(e) {
   if (e) e.stopPropagation();
-  owgrMap = {}; owgrRawList = []; owgrLoaded = false; owgrPlayerCount = 0;
+  owgrMap = {}; owgrRawList = []; owgrNatMap = {}; owgrLoaded = false; owgrPlayerCount = 0;
   document.getElementById('owgrInput').value = '';
   document.getElementById('owgrClearBtn').style.display = 'none';
   setOwgrPill(false, '');
@@ -1214,22 +1251,20 @@ function loadOWGRFile(file) {
 }
 
 function parseOWGRRows(rows) {
-  // OWGR download format: columns include RANKING, NAME (and possibly CTRY, AVERAGE POINTS etc.)
-  // Find header row
-  let rankCol = -1, nameCol = -1, headerRow = -1;
+  // OWGR download columns: RANKING, LAST WEEK, END 2025, CTRY, NAME, AVERAGE POINTS...
+  let rankCol = -1, nameCol = -1, ctryCol = -1, headerRow = -1;
   for (let r = 0; r < Math.min(rows.length, 10); r++) {
     const row = (rows[r] || []).map(c => String(c||'').toLowerCase().trim());
     for (let c = 0; c < row.length; c++) {
-      if (row[c] === 'ranking' || row[c] === 'rank' || row[c] === 'position' || row[c] === 'pos') rankCol = c;
-      if (row[c] === 'name' || row[c] === 'player' || row[c] === 'player name') nameCol = c;
+      if (['ranking','rank','position','pos'].includes(row[c])) rankCol = c;
+      if (['name','player','player name'].includes(row[c])) nameCol = c;
+      if (['ctry','country','nationality','nat'].includes(row[c])) ctryCol = c;
     }
     if (rankCol >= 0 && nameCol >= 0) { headerRow = r; break; }
   }
 
-  // Fallback: OWGR download typically has RANKING in col 0, NAME in col 4
   if (rankCol < 0) rankCol = 0;
   if (nameCol < 0) {
-    // Find the column with the most name-like values
     const scores = {};
     for (let r = 1; r < Math.min(rows.length, 30); r++) {
       (rows[r]||[]).forEach((cell,c) => {
@@ -1240,19 +1275,24 @@ function parseOWGRRows(rows) {
     const best = Object.entries(scores).sort((a,b)=>b[1]-a[1]);
     nameCol = best.length ? parseInt(best[0][0]) : 4;
   }
+  // Fallback: CTRY is typically col 3 in OWGR download
+  if (ctryCol < 0) ctryCol = 3;
 
   owgrMap = {};
   owgrRawList = [];
+  owgrNatMap = {};  // normalised name -> country code
   let count = 0;
   const start = headerRow >= 0 ? headerRow + 1 : 1;
   for (let r = start; r < rows.length; r++) {
     const row = rows[r] || [];
     const rankRaw = String(row[rankCol]||'').trim();
     const nameRaw = String(row[nameCol]||'').trim();
+    const ctryRaw = String(row[ctryCol]||'').trim().toUpperCase();
     const rankNum = parseInt(rankRaw);
     if (!isNaN(rankNum) && rankNum > 0 && nameRaw.length > 2) {
       owgrMap[normMatch(nameRaw)] = rankNum;
-      owgrRawList.push({name: nameRaw, rank: rankNum});
+      owgrRawList.push({name: nameRaw, rank: rankNum, ctry: ctryRaw});
+      if (ctryRaw) owgrNatMap[normMatch(nameRaw)] = ctryRaw;
       count++;
     }
   }
@@ -1262,9 +1302,10 @@ function parseOWGRRows(rows) {
   owgrPlayerCount = count;
   clearOwgrCache();
   document.getElementById('owgrClearBtn').style.display = 'inline-flex';
-  setOwgrPill(true, count + ' players loaded');
+  const hasNat = Object.keys(owgrNatMap).length > 0;
+  setOwgrPill(true, count + ' players loaded' + (hasNat ? ' · nationalities included' : ''));
   updateRankColumns();
-  toast(count + ' OWGR rankings loaded', '&#10003;');
+  toast(count + ' OWGR rankings loaded' + (hasNat ? ' (with nationalities)' : ''), '&#10003;');
 }
 
 function setOwgrPill(loaded, text) {
@@ -1436,21 +1477,72 @@ function rankDisplay(name) {
 }
 
 function clearOwgrCache() {
-  // Clear resolved cache whenever aliases or OWGR data changes
   Object.keys(owgrResolvedCache).forEach(k => delete owgrResolvedCache[k]);
 }
 
+function getNationality(entryName) {
+  if (!owgrLoaded || !Object.keys(owgrNatMap).length) return null;
+  // Check direct match first
+  const key = normMatch(entryName);
+  if (owgrNatMap[key]) return owgrNatMap[key];
+  // Check alias
+  const aliasKey = normOWGR(entryName);
+  if (aliasMap[aliasKey]) {
+    const aliasNorm = normMatch(aliasMap[aliasKey]);
+    if (owgrNatMap[aliasNorm]) return owgrNatMap[aliasNorm];
+  }
+  // Check via fuzzy match — find the best matching name in owgrRawList
+  const rank = getRank(entryName);
+  if (rank) {
+    const matched = owgrRawList.find(p => p.rank === rank && nameScore(entryName, p.name) >= OWGR_FUZZY_THRESHOLD);
+    if (matched && matched.ctry) return matched.ctry;
+  }
+  return null;
+}
+
+// Country code → full country name lookup (common golf nations)
+const COUNTRY_NAMES = {
+  'AUS':'Australia','ENG':'England','USA':'United States','JPN':'Japan','KOR':'Korea',
+  'THA':'Thailand','CHN':'China','SCO':'Scotland','WAL':'Wales','IRL':'Ireland',
+  'RSA':'South Africa','ESP':'Spain','GER':'Germany','FRA':'France','SWE':'Sweden',
+  'DEN':'Denmark','NOR':'Norway','NZL':'New Zealand','CAN':'Canada','ZIM':'Zimbabwe',
+  'IND':'India','PHI':'Philippines','SGP':'Singapore','MAS':'Malaysia','HKG':'Hong Kong',
+  'TPE':'Chinese Taipei','MEX':'Mexico','ARG':'Argentina','COL':'Colombia','CHI':'Chile',
+  'BEL':'Belgium','NED':'Netherlands','AUT':'Austria','SUI':'Switzerland','ITA':'Italy',
+  'POR':'Portugal','FIN':'Finland','CZE':'Czech Republic','POL':'Poland','NIR':'N. Ireland',
+  'FIJ':'Fiji','PNG':'Papua New Guinea','IDN':'Indonesia','PAK':'Pakistan','SRI':'Sri Lanka',
+  'PER':'Peru','VEN':'Venezuela','PRY':'Paraguay','BRA':'Brazil','URY':'Uruguay',
+  'NAM':'Namibia','ZAM':'Zambia','BOT':'Botswana','KEN':'Kenya','UGA':'Uganda',
+  'MOR':'Morocco','EGY':'Egypt','TUN':'Tunisia','SAU':'Saudi Arabia','QAT':'Qatar',
+  'UAE':'UAE','OMN':'Oman','BRN':'Bahrain','KWT':'Kuwait','JOR':'Jordan',
+  'CYP':'Cyprus','MLT':'Malta','ISR':'Israel','GRE':'Greece','HUN':'Hungary',
+  'SVK':'Slovakia','SLO':'Slovenia','CRO':'Croatia','ROU':'Romania','BUL':'Bulgaria',
+  'RUS':'Russia','UKR':'Ukraine','KAZ':'Kazakhstan','CHN':'China','HKG':'Hong Kong',
+  'MAC':'Macau','MON':'Mongolia','VIE':'Vietnam','CAM':'Cambodia','MYA':'Myanmar',
+  'LAO':'Laos','BRU':'Brunei','TLS':'Timor-Leste'
+};
+
+function countryName(code) {
+  return COUNTRY_NAMES[code] || code;
+}
+
 function updateRankColumns() {
-  const show = owgrLoaded;
+  const showRank = owgrLoaded;
+  const showNat  = owgrLoaded && Object.keys(owgrNatMap).length > 0;
   ['previewRankHead','livRankHead','nonLivRankHead'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.style.display = show ? '' : 'none';
+    if (el) el.style.display = showRank ? '' : 'none';
+  });
+  ['livNatHead','nonLivNatHead'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = showNat ? '' : 'none';
   });
   // Re-render tables if data exists
   if (detectedPlayers.length) renderPreviewRows(detectedPlayers);
   if (matchResults.matched.length || matchResults.nonLiv.length) {
     renderMatchRows();
     renderNonLiv(nonLivFull);
+    renderCountryBreakdown();
   }
 }
 
@@ -1691,6 +1783,9 @@ function renderResults() {
 
   document.getElementById('livRankHead').style.display = owgrLoaded ? '' : 'none';
   document.getElementById('nonLivRankHead').style.display = owgrLoaded ? '' : 'none';
+  const hasNat = owgrLoaded && Object.keys(owgrNatMap).length > 0;
+  document.getElementById('livNatHead').style.display = hasNat ? '' : 'none';
+  document.getElementById('nonLivNatHead').style.display = hasNat ? '' : 'none';
 
   const teams = new Set(matched.map(m=>m.livPlayer.team));
   let topRankedName = '', topRankedRank = Infinity;
@@ -1754,32 +1849,84 @@ function renderMatchRows() {
   const noMsg = document.getElementById('noMatchMsg');
   if (!filtered.length) { body.innerHTML=''; noMsg.style.display='block'; return; }
   noMsg.style.display='none';
-  body.innerHTML = filtered.map((m,i) =>
-    `<tr>
+  const hasNat = owgrLoaded && Object.keys(owgrNatMap).length > 0;
+  body.innerHTML = filtered.map((m,i) => {
+    const nat = hasNat ? getNationality(m.livPlayer.name) : null;
+    return `<tr>
       <td class="rn">${i+1}</td>
       <td><strong>${esc(m.livPlayer.name)}</strong></td>
       <td><span class="badge b-gold" style="font-size:10px">${esc(m.livPlayer.team)}</span></td>
+      ${hasNat ? `<td style="font-size:12px;color:var(--tx2)">${nat ? esc(countryName(nat)) : '—'}</td>` : ''}
       ${owgrLoaded ? `<td>${rankDisplay(m.livPlayer.name)}</td>` : ''}
       <td style="text-align:center">${isWinsDisplay(m.livPlayer.name)}</td>
-    </tr>`
-  ).join('');
+    </tr>`;
+  }).join('');
 }
 
 function renderNonLiv(players) {
+  const hasNat = owgrLoaded && Object.keys(owgrNatMap).length > 0;
   let list = champFilterActive ? players.filter(p => getISWins(p)) : players;
-  document.getElementById('nonLivBody').innerHTML = list.map((p,i) =>
-    `<tr>
+  document.getElementById('nonLivBody').innerHTML = list.map((p,i) => {
+    const nat = hasNat ? getNationality(p) : null;
+    return `<tr>
       <td class="rn">${i+1}</td>
       <td>${esc(p)}</td>
+      ${hasNat ? `<td style="font-size:12px;color:var(--tx2)">${nat ? esc(countryName(nat)) : '—'}</td>` : ''}
       ${owgrLoaded ? `<td>${rankDisplay(p)}</td>` : ''}
       <td style="text-align:center">${isWinsDisplay(p)}</td>
-    </tr>`
-  ).join('');
+    </tr>`;
+  }).join('');
+  renderCountryBreakdown();
 }
 
 function filterNonLiv(q) {
   const f = q.toLowerCase();
   renderNonLiv(nonLivFull.filter(p=>p.toLowerCase().includes(f)));
+}
+
+let countryFilter = 'all';
+function setCountryFilter(f, el) {
+  countryFilter = f;
+  document.querySelectorAll('#countryFilterChips .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  renderCountryBreakdown();
+}
+
+function renderCountryBreakdown() {
+  const card = document.getElementById('countryBreakdownCard');
+  if (!owgrLoaded || !Object.keys(owgrNatMap).length || !detectedPlayers.length) {
+    card.style.display = 'none'; return;
+  }
+  card.style.display = 'block';
+
+  const rosterNames = new Set(roster.map(p => normMatch(p.name)));
+  const natCount = {}; // code -> {total, liv, nonliv}
+
+  for (const name of detectedPlayers) {
+    const nat = getNationality(name);
+    if (!nat) continue;
+    if (!natCount[nat]) natCount[nat] = {total:0, liv:0, nonliv:0};
+    natCount[nat].total++;
+    if (rosterNames.has(normMatch(name))) natCount[nat].liv++;
+    else natCount[nat].nonliv++;
+  }
+
+  // Apply filter
+  let entries = Object.entries(natCount);
+  if (countryFilter === 'liv') entries = entries.filter(([,v]) => v.liv > 0);
+  if (countryFilter === 'nonliv') entries = entries.filter(([,v]) => v.nonliv > 0);
+  entries.sort((a,b) => b[1].total - a[1].total);
+
+  document.getElementById('countryBreakdownCount').textContent =
+    entries.length + ' countries · ' + entries.reduce((s,[,v])=>s+v.total,0) + ' players identified';
+
+  document.getElementById('countryBreakdownBody').innerHTML = entries.map(([code, v]) => `
+    <tr>
+      <td><strong>${esc(countryName(code))}</strong> <span style="color:var(--tx3);font-size:11px">${esc(code)}</span></td>
+      <td style="text-align:right;font-weight:600">${v.total}</td>
+      <td style="text-align:right;color:var(--gold2)">${v.liv || '—'}</td>
+      <td style="text-align:right;color:var(--tx2)">${v.nonliv || '—'}</td>
+    </tr>`).join('');
 }
 
 // ============================================================
@@ -2253,6 +2400,7 @@ function saveAlias() {
   if (oldKey && oldKey !== '-1' && oldKey !== normOWGR(entry)) delete aliasMap[oldKey];
   aliasMap[normOWGR(entry)] = owgr.toLowerCase();
   clearOwgrCache();
+  saveAliasToStorage();
   closeModal('aliasModal');
   renderAliases();
   updateRankColumns();
@@ -2262,6 +2410,7 @@ function saveAlias() {
 function deleteAlias(key) {
   delete aliasMap[key];
   clearOwgrCache();
+  saveAliasToStorage();
   renderAliases();
   updateRankColumns();
   toast('Alias removed', '&#10003;');
@@ -2400,110 +2549,26 @@ async function loadStartimesPDF(file) {
   try {
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-    const allGroups = {};
 
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-      const page    = await pdf.getPage(pageNum);
-      const content = await page.getTextContent();
-      const vp      = page.getViewport({scale:1});
-      const W       = vp.width;
-      const SPLIT   = W * 0.505;
+    // ── FORMAT DETECTION ─────────────────────────────────────
+    // Sniff the first page to decide which parser to use.
+    // Korean format: portrait (W<H), country codes at ~39%, ~66%, ~93% of width,
+    //   all 3 players on ONE row — no "STARTING FROM TEE" headers.
+    // Asian Tour format: landscape (W>H) or two-column layout with "STARTING FROM TEE" headers.
+    const firstPage    = await pdf.getPage(1);
+    const firstContent = await pdf.getPage(1).then(p => p.getTextContent());
+    const firstVP      = firstPage.getViewport({scale:1});
+    const isPortrait   = firstVP.height > firstVP.width;
+    const firstTexts   = firstContent.items.map(i => i.str.trim()).filter(Boolean);
+    const hasAsianTourHeaders = firstTexts.some(t =>
+      ['STARTING','MORNING','AFTERNOON','SESSION','Represents'].includes(t));
+    // Korean format: portrait AND no Asian Tour headers AND has country codes
+    const hasKoreanCountryCodes = firstTexts.some(t => /^(KOR|THA|USA|AUS|JPN|GBR|NZL|ZIM|GER|FRA|SWE|RSA|TPE|PHI|CAN|MAS|CHN|IND|SGP|MEX|BRA|KSA|K\.A)$/.test(t));
+    const useKoreanParser = isPortrait && !hasAsianTourHeaders && hasKoreanCountryCodes;
 
-      const L_GRP_MAX  = W * 0.058;
-      const L_NAME_MIN = W * 0.118;
-      const L_NAME_MAX = W * 0.345;
-      const R_GRP_MIN  = W * 0.515;
-      const R_GRP_MAX  = W * 0.545;
-      const R_NAME_MIN = W * 0.596;
-      const R_NAME_MAX = W * 0.815;
-
-      const SKIP = new Set(['STARTING','FROM','TEE','Group','Time','Tee','Name','Represents',
-        'MORNING','AFTERNOON','SESSION','Singapore','Open','Sentosa','Golf','Club,','The',
-        'Serapong','Starting','Times','for','Round','International','Series','Japan',
-        'Caledonian','Club','Asian','Tour','ASIAN','TOUR']);
-
-      function isSkip(t) {
-        if (SKIP.has(t)) return true;
-        if (/^\d+$/.test(t)) return true;         // pure integers (1, 10, 68...)
-        if (/^\d{2}:\d{2}$/.test(t)) return true; // times
-        if (/^[\-\+]\d+/.test(t)) return true;    // scores like -4, +2
-        return false;
-      }
-
-      function getName(rowWords, xmin, xmax) {
-        const nw = rowWords.filter(w => w.x0 >= xmin && w.x0 <= xmax && !isSkip(w.text));
-        if (!nw.length) return null;
-        return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').replace(/,\s*$/,'').trim();
-      }
-
-      // Build word list
-      const words = [];
-      for (const item of content.items) {
-        const t = item.str.trim();
-        if (!t) continue;
-        words.push({text:t, x0:item.transform[4], top: vp.height - item.transform[5] - item.height});
-      }
-
-      // Cluster into y-rows (3pt buckets)
-      const rowMap = {};
-      for (const w of words) {
-        const y = Math.round(w.top / 3) * 3;
-        if (!rowMap[y]) rowMap[y] = [];
-        rowMap[y].push(w);
-      }
-      const sortedYs = Object.keys(rowMap).map(Number).sort((a,b)=>a-b);
-
-      function processSide(side, xmin, xmax) {
-        // Step 1: find all anchor rows (group number + tee time on same row)
-        const anchors = []; // [{y, gnum, time, tee}]
-        for (const y of sortedYs) {
-          const row = rowMap[y];
-          const sr  = row.filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
-          const gw  = side==='L'
-            ? sr.find(w => w.x0 < L_GRP_MAX && /^\d{1,2}$/.test(w.text))
-            : sr.find(w => w.x0 >= R_GRP_MIN && w.x0 <= R_GRP_MAX && /^\d{1,2}$/.test(w.text));
-          const tw  = sr.find(w => /^\d{2}:\d{2}$/.test(w.text));
-          if (gw && tw) {
-            const teeW = side==='L'
-              ? sr.find(w => w.x0 > L_GRP_MAX && w.x0 < L_NAME_MIN && /^\d+$/.test(w.text))
-              : sr.find(w => w.x0 > R_GRP_MAX && w.x0 < R_NAME_MIN && /^\d+$/.test(w.text));
-            anchors.push({y, gnum:gw.text, time:tw.text, tee:teeW?teeW.text:(side==='L'?'1':'10')});
-          }
-        }
-        if (!anchors.length) return;
-
-        // Step 2: compute midpoint boundaries between consecutive anchors
-        // Each name row is assigned to the group whose anchor interval [start, end) contains it
-        const startBounds = anchors.map((a, i) =>
-          i === 0 ? 0 : (anchors[i-1].y + a.y) / 2
-        );
-        const endBounds = anchors.map((a, i) =>
-          i+1 < anchors.length ? (a.y + anchors[i+1].y) / 2 : Infinity
-        );
-
-        // Initialise group entries
-        for (const a of anchors) {
-          allGroups[a.gnum] = {group:a.gnum, time:a.time, tee:a.tee, players:[]};
-        }
-
-        // Step 3: assign every name row to its group by midpoint interval
-        for (const y of sortedYs) {
-          const rw   = rowMap[y].filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
-          const name = getName(rw, xmin, xmax);
-          if (!name) continue;
-          for (let i = 0; i < anchors.length; i++) {
-            if (y >= startBounds[i] && y < endBounds[i]) {
-              if (!allGroups[anchors[i].gnum].players.includes(name))
-                allGroups[anchors[i].gnum].players.push(name);
-              break;
-            }
-          }
-        }
-      }
-
-      processSide('L', L_NAME_MIN, L_NAME_MAX);
-      processSide('R', R_NAME_MIN, R_NAME_MAX);
-    }
+    const allGroups = useKoreanParser
+      ? await parseKoreanFormat(pdf)
+      : await parseAsianTourFormat(pdf);
 
     finishStartimes(Object.values(allGroups), file.name);
   } catch(err) {
@@ -2511,6 +2576,200 @@ async function loadStartimesPDF(file) {
     toast('Could not parse PDF: ' + err.message, '&#10005;');
     console.error(err);
   }
+}
+
+// ── KOREAN FORMAT PARSER ──────────────────────────────────────
+// Single wide table, one row per group.
+// Columns: NO | TIME | Name1... | CTRY1 | Name2... | CTRY2 | Name3... | CTRY3
+async function parseKoreanFormat(pdf) {
+  const allGroups = {};
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page    = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    const vp      = page.getViewport({scale:1});
+    const W       = vp.width;
+
+    // Column boundaries (proportional to 595pt A4 portrait)
+    const NO_MAX   = W * 0.14;
+    const C1_MIN   = W * 0.36, C1_MAX = W * 0.44;
+    const C2_MIN   = W * 0.62, C2_MAX = W * 0.70;
+    const C3_MIN   = W * 0.88, C3_MAX = W * 0.99;
+    const N1_MIN   = W * 0.17, N1_MAX = W * 0.36;
+    const N2_MIN   = W * 0.44, N2_MAX = W * 0.62;
+    const N3_MIN   = W * 0.70, N3_MAX = W * 0.88;
+
+    const SKIP_K = new Set(['NO','TIME','PLAYERS','P','L','A','Y','E','R','S',
+      'THE','GS','Caltex','Maekyung','Open','Golf','Championship','ROUND',
+      'APRIL','NAMSEOUL','C.C.','1ST','10TH','TEE','KGA','KPGA','/']);
+
+    function isSkipK(t) { return SKIP_K.has(t) || /^\d{4}$/.test(t); }
+
+    function getNameK(rw, xmin, xmax) {
+      const nw = rw.filter(w => w.x0 >= xmin && w.x0 < xmax && !isSkipK(w.text)
+        && !/^[A-Z]{2,3}$/.test(w.text) && w.text !== 'K.A');
+      if (!nw.length) return null;
+      return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').trim();
+    }
+
+    function getCtryK(rw, xmin, xmax) {
+      const cw = rw.filter(w => w.x0 >= xmin && w.x0 <= xmax
+        && /^([A-Z]{2,3}|K\.A)$/.test(w.text));
+      return cw.length ? cw[0].text : null;
+    }
+
+    // Build word list
+    const words = [];
+    for (const item of content.items) {
+      const t = item.str.trim();
+      if (!t) continue;
+      words.push({text:t, x0:item.transform[4], top: vp.height - item.transform[5] - item.height});
+    }
+
+    // Cluster by y
+    const rowMap = {};
+    for (const w of words) {
+      const y = Math.round(w.top / 3) * 3;
+      if (!rowMap[y]) rowMap[y] = [];
+      rowMap[y].push(w);
+    }
+
+    let currentTee = '1';
+
+    for (const y of Object.keys(rowMap).map(Number).sort((a,b)=>a-b)) {
+      const row = rowMap[y];
+      const texts = row.map(w => w.text);
+
+      // Detect tee section header
+      if (texts.includes('1ST') || (texts.includes('1') && texts.includes('TEE'))) { currentTee = '1'; continue; }
+      if (texts.includes('10TH') || (texts.includes('10') && texts.includes('TEE'))) { currentTee = '10'; continue; }
+
+      // Find group number and time
+      const grpW  = row.find(w => w.x0 < NO_MAX && /^\d{1,2}$/.test(w.text));
+      const timeW = row.find(w => /^\d{2}:\d{2}$/.test(w.text));
+      if (!grpW || !timeW) continue;
+
+      const n1 = getNameK(row, N1_MIN, N1_MAX);
+      const n2 = getNameK(row, N2_MIN, N2_MAX);
+      const n3 = getNameK(row, N3_MIN, N3_MAX);
+      const c1 = getCtryK(row, C1_MIN, C1_MAX);
+      const c2 = getCtryK(row, C2_MIN, C2_MAX);
+      const c3 = getCtryK(row, C3_MIN, C3_MAX);
+
+      const players = [n1, n2, n3].filter(Boolean);
+      allGroups[grpW.text] = {
+        group: grpW.text, time: timeW.text, tee: currentTee, players
+      };
+
+      // Store nationalities directly from this PDF into owgrNatMap if not already there
+      [[n1,c1],[n2,c2],[n3,c3]].forEach(([name, ctry]) => {
+        if (name && ctry) {
+          const key = normMatch(name);
+          if (!owgrNatMap[key]) owgrNatMap[key] = ctry;
+        }
+      });
+    }
+  }
+  return allGroups;
+}
+
+// ── ASIAN TOUR FORMAT PARSER ──────────────────────────────────
+// Two-column layout (landscape or wide), midpoint-boundary group assignment.
+async function parseAsianTourFormat(pdf) {
+  const allGroups = {};
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page    = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    const vp      = page.getViewport({scale:1});
+    const W       = vp.width;
+    const SPLIT   = W * 0.505;
+
+    const L_GRP_MAX  = W * 0.058;
+    const L_NAME_MIN = W * 0.118;
+    const L_NAME_MAX = W * 0.345;
+    const R_GRP_MIN  = W * 0.515;
+    const R_GRP_MAX  = W * 0.545;
+    const R_NAME_MIN = W * 0.596;
+    const R_NAME_MAX = W * 0.815;
+
+    const SKIP = new Set(['STARTING','FROM','TEE','Group','Time','Tee','Name','Represents',
+      'MORNING','AFTERNOON','SESSION','Singapore','Open','Sentosa','Golf','Club,','The',
+      'Serapong','Starting','Times','for','Round','International','Series','Japan',
+      'Caledonian','Club','Asian','Tour','ASIAN','TOUR']);
+
+    function isSkip(t) {
+      if (SKIP.has(t)) return true;
+      if (/^\d+$/.test(t)) return true;
+      if (/^\d{2}:\d{2}$/.test(t)) return true;
+      if (/^[\-\+]\d+/.test(t)) return true;
+      return false;
+    }
+
+    function getName(rowWords, xmin, xmax) {
+      const nw = rowWords.filter(w => w.x0 >= xmin && w.x0 <= xmax && !isSkip(w.text));
+      if (!nw.length) return null;
+      return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').replace(/,\s*$/,'').trim();
+    }
+
+    const words = [];
+    for (const item of content.items) {
+      const t = item.str.trim();
+      if (!t) continue;
+      words.push({text:t, x0:item.transform[4], top: vp.height - item.transform[5] - item.height});
+    }
+
+    const rowMap = {};
+    for (const w of words) {
+      const y = Math.round(w.top / 3) * 3;
+      if (!rowMap[y]) rowMap[y] = [];
+      rowMap[y].push(w);
+    }
+    const sortedYs = Object.keys(rowMap).map(Number).sort((a,b)=>a-b);
+
+    function processSide(side, xmin, xmax) {
+      const anchors = [];
+      for (const y of sortedYs) {
+        const row = rowMap[y];
+        const sr  = row.filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
+        const gw  = side==='L'
+          ? sr.find(w => w.x0 < L_GRP_MAX && /^\d{1,2}$/.test(w.text))
+          : sr.find(w => w.x0 >= R_GRP_MIN && w.x0 <= R_GRP_MAX && /^\d{1,2}$/.test(w.text));
+        const tw  = sr.find(w => /^\d{2}:\d{2}$/.test(w.text));
+        if (gw && tw) {
+          const teeW = side==='L'
+            ? sr.find(w => w.x0 > L_GRP_MAX && w.x0 < L_NAME_MIN && /^\d+$/.test(w.text))
+            : sr.find(w => w.x0 > R_GRP_MAX && w.x0 < R_NAME_MIN && /^\d+$/.test(w.text));
+          anchors.push({y, gnum:gw.text, time:tw.text, tee:teeW?teeW.text:(side==='L'?'1':'10')});
+        }
+      }
+      if (!anchors.length) return;
+
+      const startBounds = anchors.map((a,i) => i===0 ? 0 : (anchors[i-1].y + a.y)/2);
+      const endBounds   = anchors.map((a,i) => i+1<anchors.length ? (a.y+anchors[i+1].y)/2 : Infinity);
+
+      for (const a of anchors) {
+        allGroups[a.gnum] = {group:a.gnum, time:a.time, tee:a.tee, players:[]};
+      }
+
+      for (const y of sortedYs) {
+        const rw   = rowMap[y].filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
+        const name = getName(rw, xmin, xmax);
+        if (!name) continue;
+        for (let i=0; i<anchors.length; i++) {
+          if (y >= startBounds[i] && y < endBounds[i]) {
+            if (!allGroups[anchors[i].gnum].players.includes(name))
+              allGroups[anchors[i].gnum].players.push(name);
+            break;
+          }
+        }
+      }
+    }
+
+    processSide('L', L_NAME_MIN, L_NAME_MAX);
+    processSide('R', R_NAME_MIN, R_NAME_MAX);
+  }
+  return allGroups;
 }
 
 function finishStartimes(groups, filename) {
@@ -2730,37 +2989,39 @@ window.addEventListener('load', () => {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
   // ── Boot from localStorage ──────────────────────────────
-  // Roster: load saved version (falls back to built-in if nothing saved)
+  // Roster
   const rosterLoaded = loadRosterFromStorage();
-  if (rosterLoaded) {
-    console.log('Roster loaded from storage:', roster.length, 'players');
-  }
 
-  // IS Winners: load saved override
+  // IS Winners
   const savedISWins = loadISWinsFromStorage();
   if (savedISWins) {
     isWinsOverride = savedISWins;
     isWinsUploaded = true;
-    console.log('IS Winners loaded from storage:', Object.keys(savedISWins).length, 'players');
   }
 
-  // Show a status indicator in the upload panel if data is persisted
-  showPersistenceBanner(rosterLoaded, !!savedISWins);
+  // Aliases — merge saved aliases ON TOP of built-in defaults
+  const savedAliases = loadAliasFromStorage();
+  if (savedAliases) {
+    // Merge: saved aliases override built-in ones, preserving built-ins not overridden
+    Object.assign(aliasMap, savedAliases);
+  }
+
+  showPersistenceBanner(rosterLoaded, !!savedISWins, !!savedAliases);
 });
 
-function showPersistenceBanner(rosterSaved, isWinsSaved) {
-  if (!rosterSaved && !isWinsSaved) return;
+function showPersistenceBanner(rosterSaved, isWinsSaved, aliasesSaved) {
+  if (!rosterSaved && !isWinsSaved && !aliasesSaved) return;
   const parts = [];
   if (rosterSaved) parts.push(`LIV Roster (${roster.length} players)`);
   if (isWinsSaved) parts.push(`IS Winners (${Object.keys(isWinsOverride).length} players)`);
+  if (aliasesSaved) parts.push(`Name Aliases`);
   const banner = document.createElement('div');
-  banner.style.cssText = 'background:rgba(78,200,122,.08);border:1px solid rgba(78,200,122,.2);border-radius:8px;padding:9px 14px;font-size:12px;color:#6ee09a;margin-bottom:1rem;display:flex;align-items:center;gap:8px;';
+  banner.style.cssText = 'background:rgba(78,200,122,.08);border:1px solid rgba(78,200,122,.2);border-radius:8px;padding:9px 14px;font-size:12px;color:#6ee09a;margin-bottom:1rem;display:flex;align-items:center;gap:8px;transition:opacity 0.5s';
   banner.innerHTML = `<span style="font-size:14px">&#10003;</span> Saved data loaded: ${parts.join(' · ')}`;
   const uploadPanel = document.getElementById('panel-upload');
   uploadPanel.insertBefore(banner, uploadPanel.firstChild);
   setTimeout(() => banner.style.opacity = '0', 4000);
   setTimeout(() => banner.remove(), 4500);
-  banner.style.transition = 'opacity 0.5s';
 }
 </script>
 </body>
