@@ -1349,33 +1349,49 @@ function firstNames(s) {
 }
 
 // Score how well two names match (0–1)
+// Handles: normal order, reversed order (surname-first like KIM Jaeho), partial names
 function nameScore(entryName, owgrName) {
   const en = normOWGR(entryName), on = normOWGR(owgrName);
   if (en === on) return 1.0;
-  const eLast = lastName(entryName), oLast = lastName(owgrName);
-  const eFirst = firstNames(entryName), oFirst = firstNames(owgrName);
-  // Last names must be very close
+
+  // Try reversed entry name (handles surname-first format: "KIM Jaeho" → "Jaeho KIM")
+  const enTokens = en.split(' ');
+  const enReversed = enTokens.length >= 2
+    ? enTokens.slice(1).join(' ') + ' ' + enTokens[0]  // "kim jaeho" → "jaeho kim"
+    : en;
+
+  // Score both orderings, return the best
+  const scoreNormal   = _scoreOrdered(en, on);
+  const scoreReversed = enReversed !== en ? _scoreOrdered(enReversed, on) : 0;
+  return Math.max(scoreNormal, scoreReversed);
+}
+
+function _scoreOrdered(en, on) {
+  if (en === on) return 1.0;
+
+  const eToks = en.split(' '), oToks = on.split(' ');
+  const eLast = eToks[eToks.length-1], oLast = oToks[oToks.length-1];
+  const eFirst = eToks.slice(0,-1).join(' '), oFirst = oToks.slice(0,-1).join(' ');
+
+  // Last names must be reasonably close
   const lastDist = lev(eLast, oLast);
   const lastMaxLen = Math.max(eLast.length, oLast.length, 1);
-  if (lastDist / lastMaxLen > 0.25) return 0; // last name too different → skip
+  if (lastDist / lastMaxLen > 0.30) return 0;
   const lastScore = 1 - lastDist / lastMaxLen;
-  // First name scoring — handle nicknames, abbreviated first names, middle names
+
+  // First name scoring
   let firstScore = 0;
   if (!eFirst || !oFirst) {
-    firstScore = 0.5; // one is missing first name
+    firstScore = 0.5;
   } else {
-    // Check if entry first name is contained in OWGR first name or vice versa
     const eF = eFirst.split(' '), oF = oFirst.split(' ');
-    // Direct similarity
     const directDist = lev(eFirst, oFirst);
     const directSim = 1 - directDist / Math.max(eFirst.length, oFirst.length, 1);
-    // Token-level: does any entry first token closely match any OWGR first token?
     let tokenBest = 0;
     for (const et of eF) for (const ot of oF) {
       const s = 1 - lev(et,ot)/Math.max(et.length,ot.length,1);
       if (s > tokenBest) tokenBest = s;
     }
-    // Prefix check: "Jose" matches "Jose Luis" — entry first is prefix of OWGR first
     const prefixMatch = oFirst.startsWith(eFirst) || eFirst.startsWith(oFirst) ? 0.85 : 0;
     firstScore = Math.max(directSim, tokenBest * 0.9, prefixMatch);
   }
@@ -1410,12 +1426,20 @@ function getRank(entryName) {
   const exact = owgrMap[normMatch(entryName)];
   if (exact) { owgrResolvedCache[cacheKey] = exact; return exact; }
 
-  // Layer 3: Last-name-exact + first-name-fuzzy
-  const entryLast = lastName(entryName);
+  // Layer 3: Last-name-exact + first-name-fuzzy (tries both token orderings)
+  const entryNorm = normOWGR(entryName);
+  const entryToks = entryNorm.split(' ');
+  // Candidate surnames: last token (normal) AND first token (surname-first format)
+  const candidateSurnames = [...new Set([
+    entryToks[entryToks.length-1],          // normal: "Chase KOEPKA" → "koepka"
+    entryToks[0]                             // surname-first: "KIM Jaeho" → "kim"
+  ])];
+
   let bestScore = 0, bestRank = null;
   for (const {name, rank} of owgrRawList) {
     const owLast = lastName(name);
-    if (lev(entryLast, owLast) > 1) continue; // last name must be very close
+    const isCandidate = candidateSurnames.some(cs => lev(cs, owLast) <= 1);
+    if (!isCandidate) continue;
     const score = nameScore(entryName, name);
     if (score > bestScore) { bestScore = score; bestRank = rank; }
   }
@@ -1494,8 +1518,15 @@ function getNationality(entryName) {
   // Check via fuzzy match — find the best matching name in owgrRawList
   const rank = getRank(entryName);
   if (rank) {
-    const matched = owgrRawList.find(p => p.rank === rank && nameScore(entryName, p.name) >= OWGR_FUZZY_THRESHOLD);
+    const matched = owgrRawList.find(p => p.rank === rank &&
+      nameScore(entryName, p.name) >= OWGR_FUZZY_THRESHOLD);
     if (matched && matched.ctry) return matched.ctry;
+  }
+  // Also try reversed name directly in owgrNatMap
+  const entryToks = normOWGR(entryName).split(' ');
+  if (entryToks.length >= 2) {
+    const reversed = entryToks.slice(1).join(' ') + ' ' + entryToks[0];
+    if (owgrNatMap[reversed]) return owgrNatMap[reversed];
   }
   return null;
 }
