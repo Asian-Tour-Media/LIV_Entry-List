@@ -2573,7 +2573,7 @@ function loadStartimesXLSX(file) {
   reader.readAsArrayBuffer(file);
 }
 
-// ── PDF PARSER ───────────────────────────────────────────────
+// ── PDF PARSER — auto-detects format ─────────────────────────
 async function loadStartimesPDF(file) {
   if (typeof pdfjsLib === 'undefined') { toast('PDF library not ready, try again', '&#10005;'); return; }
   setStartimesPill(false, 'Parsing...');
@@ -2581,24 +2581,33 @@ async function loadStartimesPDF(file) {
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
 
-    // ── FORMAT DETECTION ─────────────────────────────────────
-    // Sniff the first page to decide which parser to use.
-    // Korean format: portrait (W<H), country codes at ~39%, ~66%, ~93% of width,
-    //   all 3 players on ONE row — no "STARTING FROM TEE" headers.
-    // Asian Tour format: landscape (W>H) or two-column layout with "STARTING FROM TEE" headers.
+    // Sniff page 1 to detect format
     const firstPage    = await pdf.getPage(1);
-    const firstContent = await pdf.getPage(1).then(p => p.getTextContent());
+    const firstContent = await firstPage.getTextContent();
     const firstVP      = firstPage.getViewport({scale:1});
-    const isPortrait   = firstVP.height > firstVP.width;
-    const firstTexts   = firstContent.items.map(i => i.str.trim()).filter(Boolean);
-    const hasAsianTourHeaders = firstTexts.some(t =>
-      ['STARTING','MORNING','AFTERNOON','SESSION','Represents'].includes(t));
-    // Korean format: portrait AND no Asian Tour headers AND has country codes
-    const hasKoreanCountryCodes = firstTexts.some(t => /^(KOR|THA|USA|AUS|JPN|GBR|NZL|ZIM|GER|FRA|SWE|RSA|TPE|PHI|CAN|MAS|CHN|IND|SGP|MEX|BRA|KSA|K\.A)$/.test(t));
-    const useKoreanParser = isPortrait && !hasAsianTourHeaders && hasKoreanCountryCodes;
+    const W = firstVP.width, H = firstVP.height;
+    const isPortrait   = H > W;
+    const firstWords   = firstContent.items
+      .filter(i => i.str.trim())
+      .map(i => ({text: i.str.trim(), x0: i.transform[4]}));
+    const firstTexts   = firstWords.map(w => w.text);
 
-    const allGroups = useKoreanParser
-      ? await parseKoreanFormat(pdf)
+    // Asian Tour format has these header words; Korean format does not
+    const hasAsianHeaders = firstTexts.some(t =>
+      ['STARTING','MORNING','AFTERNOON','SESSION','Represents'].includes(t));
+
+    // Korean format has country codes (2-3 capital letters) as standalone words
+    const hasKoreanCodes = firstTexts.some(t =>
+      /^([A-Z]{2,3}|K\.A)$/.test(t));
+
+    // Score columns in Korean cut-round format: 3-digit numbers at ~37-43% of width
+    const hasScores = isPortrait && firstWords.some(w =>
+      w.x0 >= W*0.37 && w.x0 <= W*0.43 && /^\d{3}$/.test(w.text));
+
+    const useKorean = isPortrait && !hasAsianHeaders && hasKoreanCodes;
+
+    const allGroups = useKorean
+      ? await parseKoreanFormat(pdf, hasScores)
       : await parseAsianTourFormat(pdf);
 
     finishStartimes(Object.values(allGroups), file.name);
@@ -2610,9 +2619,10 @@ async function loadStartimesPDF(file) {
 }
 
 // ── KOREAN FORMAT PARSER ──────────────────────────────────────
-// Single wide table, one row per group.
-// Columns: NO | TIME | Name1... | CTRY1 | Name2... | CTRY2 | Name3... | CTRY3
-async function parseKoreanFormat(pdf) {
+// Single wide table: NO | TIME | Name1 CTRY1 [SCORE] | Name2 CTRY2 [SCORE] | Name3 CTRY3 [SCORE]
+// Handles both with-score (cut rounds) and without-score (early rounds) layouts.
+// Groups may span multiple y-rows; uses anchor-based collection with proportional x-columns.
+async function parseKoreanFormat(pdf, hasScores) {
   const allGroups = {};
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
@@ -2620,34 +2630,6 @@ async function parseKoreanFormat(pdf) {
     const content = await page.getTextContent();
     const vp      = page.getViewport({scale:1});
     const W       = vp.width;
-
-    // Column boundaries (proportional to 595pt A4 portrait)
-    const NO_MAX   = W * 0.14;
-    const C1_MIN   = W * 0.36, C1_MAX = W * 0.44;
-    const C2_MIN   = W * 0.62, C2_MAX = W * 0.70;
-    const C3_MIN   = W * 0.88, C3_MAX = W * 0.99;
-    const N1_MIN   = W * 0.17, N1_MAX = W * 0.36;
-    const N2_MIN   = W * 0.44, N2_MAX = W * 0.62;
-    const N3_MIN   = W * 0.70, N3_MAX = W * 0.88;
-
-    const SKIP_K = new Set(['NO','TIME','PLAYERS','P','L','A','Y','E','R','S',
-      'THE','GS','Caltex','Maekyung','Open','Golf','Championship','ROUND',
-      'APRIL','NAMSEOUL','C.C.','1ST','10TH','TEE','KGA','KPGA','/']);
-
-    function isSkipK(t) { return SKIP_K.has(t) || /^\d{4}$/.test(t); }
-
-    function getNameK(rw, xmin, xmax) {
-      const nw = rw.filter(w => w.x0 >= xmin && w.x0 < xmax && !isSkipK(w.text)
-        && !/^[A-Z]{2,3}$/.test(w.text) && w.text !== 'K.A');
-      if (!nw.length) return null;
-      return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').trim();
-    }
-
-    function getCtryK(rw, xmin, xmax) {
-      const cw = rw.filter(w => w.x0 >= xmin && w.x0 <= xmax
-        && /^([A-Z]{2,3}|K\.A)$/.test(w.text));
-      return cw.length ? cw[0].text : null;
-    }
 
     // Build word list
     const words = [];
@@ -2657,48 +2639,101 @@ async function parseKoreanFormat(pdf) {
       words.push({text:t, x0:item.transform[4], top: vp.height - item.transform[5] - item.height});
     }
 
-    // Cluster by y
+    // Detect score columns (3-digit numbers at ~37-43% of width, e.g. 211, 212)
+    const hasScores = words.some(w =>
+      w.x0 >= W*0.37 && w.x0 <= W*0.43 && /^\d{3}$/.test(w.text));
+
+    // Column x-boundaries (proportional, stable across all Korean format PDFs)
+    const TIME_END = W * 0.145; // time col right edge (~12-14% of width)
+    const C1_X = W*0.33, C1_END = W*0.41; // CTRY1
+    const C2_X = W*0.59, C2_END = W*0.68; // CTRY2
+    const C3_X = W*0.86, C3_END = W*0.99; // CTRY3
+    const N1_END   = C1_X;
+    const N2_START = hasScores ? W*0.44 : C1_END; // skip score col if present
+    const N2_END   = C2_X;
+    const N3_START = hasScores ? W*0.70 : C2_END;
+    const N3_END   = C3_X;
+
+    const SKIP_K = new Set(['NO','TIME','PLAYERS','P','L','A','Y','E','R','S',
+      'THE','GS','Caltex','Maekyung','MAEKYUNG','Open','Golf','Championship',
+      'ROUND','FINAL','NAMSEOUL','C.C.','KGA','KPGA','/']);
+    const CTRY_RE  = /^([A-Z]{2,3}|K\.A)$/;
+    const SCORE_RE = /^\d{3}$/;
+
+    function shouldSkip(t) { return SKIP_K.has(t) || SCORE_RE.test(t); }
+    function isCtry(t)     { return CTRY_RE.test(t); }
+
+    // Cluster words into y-rows (3pt buckets)
     const rowMap = {};
     for (const w of words) {
       const y = Math.round(w.top / 3) * 3;
       if (!rowMap[y]) rowMap[y] = [];
       rowMap[y].push(w);
     }
+    const sortedYs = Object.keys(rowMap).map(Number).sort((a,b)=>a-b);
 
+    // Find group anchors (rows with group number + tee time)
     let currentTee = '1';
-
-    for (const y of Object.keys(rowMap).map(Number).sort((a,b)=>a-b)) {
-      const row = rowMap[y];
+    const anchors = [];
+    for (const y of sortedYs) {
+      const row   = rowMap[y];
       const texts = row.map(w => w.text);
-
-      // Detect tee section header
-      if (texts.includes('1ST') || (texts.includes('1') && texts.includes('TEE'))) { currentTee = '1'; continue; }
-      if (texts.includes('10TH') || (texts.includes('10') && texts.includes('TEE'))) { currentTee = '10'; continue; }
-
-      // Find group number and time
-      const grpW  = row.find(w => w.x0 < NO_MAX && /^\d{1,2}$/.test(w.text));
+      if (texts.includes('1ST'))  { currentTee = '1';  continue; }
+      if (texts.includes('10TH')) { currentTee = '10'; continue; }
+      const grpW  = row.find(w => w.x0 < W*0.14 && /^\d{1,2}$/.test(w.text));
       const timeW = row.find(w => /^\d{2}:\d{2}$/.test(w.text));
-      if (!grpW || !timeW) continue;
+      if (grpW && timeW)
+        anchors.push({y, gnum:grpW.text, time:timeW.text, tee:currentTee});
+    }
 
-      const n1 = getNameK(row, N1_MIN, N1_MAX);
-      const n2 = getNameK(row, N2_MIN, N2_MAX);
-      const n3 = getNameK(row, N3_MIN, N3_MAX);
-      const c1 = getCtryK(row, C1_MIN, C1_MAX);
-      const c2 = getCtryK(row, C2_MIN, C2_MAX);
-      const c3 = getCtryK(row, C3_MIN, C3_MAX);
+    if (!anchors.length) continue;
+    const firstAnchorY = anchors[0].y;
 
+    for (let ai = 0; ai < anchors.length; ai++) {
+      const anchor = anchors[ai];
+      const ay     = anchor.y;
+      const nextAy = ai+1 < anchors.length ? anchors[ai+1].y : ay + 200;
+
+      // Collect all words from this anchor row up to (not including) the next anchor
+      // This correctly handles groups that span two y-rows (name on one, CTRY on another)
+      const gw = [];
+      for (const y of sortedYs) {
+        if (y >= ay && y < nextAy && y >= firstAnchorY)
+          gw.push(...rowMap[y]);
+      }
+
+      function getName(x0, x1) {
+        const nw = gw.filter(w =>
+          w.x0 >= x0 && w.x0 < x1
+          && !shouldSkip(w.text)
+          && !isCtry(w.text)
+          && !/^\d{2}:\d{2}$/.test(w.text)
+          && !/^\d{1,2}$/.test(w.text)
+        );
+        if (!nw.length) return null;
+        nw.sort((a,b) => (Math.round(a.top/3)*3 - Math.round(b.top/3)*3) || (a.x0 - b.x0));
+        return nw.map(w=>w.text).join(' ').trim();
+      }
+
+      const n1 = getName(TIME_END, N1_END);
+      const n2 = getName(N2_START, N2_END);
+      const n3 = getName(N3_START, N3_END);
       const players = [n1, n2, n3].filter(Boolean);
-      allGroups[grpW.text] = {
-        group: grpW.text, time: timeW.text, tee: currentTee, players
-      };
 
-      // Store nationalities directly from this PDF into owgrNatMap if not already there
-      [[n1,c1],[n2,c2],[n3,c3]].forEach(([name, ctry]) => {
-        if (name && ctry) {
+      // Capture nationalities from the PDF directly
+      const c1w = gw.find(w => w.x0>=C1_X && w.x0<=C1_END && isCtry(w.text));
+      const c2w = gw.find(w => w.x0>=C2_X && w.x0<=C2_END && isCtry(w.text));
+      const c3w = gw.find(w => w.x0>=C3_X && w.x0<=C3_END && isCtry(w.text));
+      [[n1,c1w],[n2,c2w],[n3,c3w]].forEach(([name, cw]) => {
+        if (name && cw) {
           const key = normMatch(name);
-          if (!owgrNatMap[key]) owgrNatMap[key] = ctry;
+          if (!owgrNatMap[key]) owgrNatMap[key] = cw.text;
         }
       });
+
+      allGroups[anchor.gnum] = {
+        group:anchor.gnum, time:anchor.time, tee:anchor.tee, players
+      };
     }
   }
   return allGroups;
