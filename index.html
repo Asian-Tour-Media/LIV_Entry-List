@@ -2639,20 +2639,19 @@ async function parseKoreanFormat(pdf, hasScores) {
       words.push({text:t, x0:item.transform[4], top: vp.height - item.transform[5] - item.height});
     }
 
-    // Detect score columns (3-digit numbers at ~37-43% of width, e.g. 211, 212)
-    const hasScores = words.some(w =>
-      w.x0 >= W*0.37 && w.x0 <= W*0.43 && /^\d{3}$/.test(w.text));
-
-    // Column x-boundaries (proportional, stable across all Korean format PDFs)
-    const TIME_END = W * 0.145; // time col right edge (~12-14% of width)
-    const C1_X = W*0.33, C1_END = W*0.41; // CTRY1
-    const C2_X = W*0.59, C2_END = W*0.68; // CTRY2
-    const C3_X = W*0.86, C3_END = W*0.99; // CTRY3
-    const N1_END   = C1_X;
-    const N2_START = hasScores ? W*0.44 : C1_END; // skip score col if present
-    const N2_END   = C2_X;
-    const N3_START = hasScores ? W*0.70 : C2_END;
-    const N3_END   = C3_X;
+    // Column x-boundaries validated against all Korean PDFs:
+    // TIME col ends at max ~84pt → use 13% (77pt) as safe cutoff
+    // CTRY cols at x≈204(34%), 364(61%), 534(90%) — name space is between them
+    // Score cols (cut rounds) at x≈230, 390, 560 — names restart just after CTRY col
+    const TIME_END = W * 0.13;                    // 77pt — safely before any name
+    const C1_X = W*0.33, C1_END = W*0.415;       // CTRY1 zone: 196-247pt
+    const C2_X = W*0.59, C2_END = W*0.685;       // CTRY2 zone: 351-408pt
+    const C3_X = W*0.86, C3_END = W*0.99;        // CTRY3 zone: 512-589pt
+    const N1_END   = C1_X;                        // Name1 ends at CTRY1 start (196pt)
+    const N2_START = C1_END;                      // Name2 starts after CTRY1 (247pt) — works with or without scores
+    const N2_END   = C2_X;                        // Name2 ends at CTRY2 start (351pt)
+    const N3_START = C2_END;                      // Name3 starts after CTRY2 (408pt) — works with or without scores
+    const N3_END   = C3_X;                        // Name3 ends at CTRY3 start (512pt)
 
     const SKIP_K = new Set(['NO','TIME','PLAYERS','P','L','A','Y','E','R','S',
       'THE','GS','Caltex','Maekyung','MAEKYUNG','Open','Golf','Championship',
@@ -2694,11 +2693,12 @@ async function parseKoreanFormat(pdf, hasScores) {
       const ay     = anchor.y;
       const nextAy = ai+1 < anchors.length ? anchors[ai+1].y : ay + 200;
 
-      // Collect all words from this anchor row up to (not including) the next anchor
-      // This correctly handles groups that span two y-rows (name on one, CTRY on another)
+      // Collect all words from this anchor row up to (not including) the next anchor.
+      // Use ay-3 tolerance: PDF rendering can place visually same-row words
+      // in a y-bucket 1 step (3pt) earlier than the anchor due to sub-pixel rounding.
       const gw = [];
       for (const y of sortedYs) {
-        if (y >= ay && y < nextAy && y >= firstAnchorY)
+        if (y >= (ay - 3) && y < nextAy && y >= (firstAnchorY - 3))
           gw.push(...rowMap[y]);
       }
 
