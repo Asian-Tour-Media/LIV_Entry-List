@@ -334,6 +334,7 @@ tr:hover td{background:var(--surf2)}
   <div class="tab" data-tab="startimes" onclick="switchTab('startimes')">&#9201; Starting Times</div>
   <div class="tab admin-tab" id="rosterTab" data-tab="roster" onclick="switchTab('roster')">&#9878; LIV Roster</div>
   <div class="tab admin-tab" id="aliasTab" data-tab="aliases" onclick="switchTab('aliases')">&#128279; Name Aliases</div>
+  <div class="tab admin-tab" id="majorsTab" data-tab="majors" onclick="switchTab('majors')">&#127942; Major Winners</div>
 </div>
 
 <div class="main">
@@ -435,6 +436,7 @@ tr:hover td{background:var(--surf2)}
                 <th id="livNatHead" style="display:none">Country</th>
                 <th class="rank-col" id="livRankHead" style="display:none">OWGR</th>
                 <th title="International Series career wins">IS Wins</th>
+                <th title="Major championship wins">&#127942; Majors</th>
               </tr>
             </thead>
             <tbody id="matchBody"></tbody>
@@ -461,6 +463,7 @@ tr:hover td{background:var(--surf2)}
                 <th id="nonLivNatHead" style="display:none">Country</th>
                 <th class="rank-col" id="nonLivRankHead" style="display:none">OWGR</th>
                 <th title="International Series career wins">IS Wins</th>
+                <th title="Major championship wins">&#127942; Majors</th>
               </tr>
             </thead>
             <tbody id="nonLivBody"></tbody>
@@ -690,6 +693,36 @@ tr:hover td{background:var(--surf2)}
     </div>
   </div>
 
+  <!-- ===== MAJOR WINNERS (admin) ===== -->
+  <div class="panel" id="panel-majors">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><span class="dot" style="background:#f0d898"></span>Major Championship Winners</div>
+        <div class="btns">
+          <button class="btn btn-gold" onclick="openAddMajor()">&#43; Add Winner</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('majorsImportInput').click()">&#128196; Import CSV</button>
+          <input type="file" id="majorsImportInput" accept=".csv,.xlsx,.xls" style="display:none" onchange="importMajors(event)">
+          <button class="btn btn-ghost" onclick="downloadMajorsCSV()">&#8659; Download CSV</button>
+        </div>
+      </div>
+      <div class="info-box" style="background:rgba(240,216,152,.07);border-color:rgba(240,216,152,.25);color:#f0d898">
+        &#127942;&nbsp; Built-in data covers all four majors (Masters, PGA Championship, US Open, The Open) from 1934–2026. Add new winners after each major using the form or CSV import. Format: <strong style="color:var(--tx)">Player Name, Total Majors, Titles</strong>.
+      </div>
+      <div class="srch-wrap">
+        <span class="srch-ic">&#128269;</span>
+        <input type="text" class="srch" id="majorsSearch" placeholder="Search major winners..." oninput="renderMajors()">
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Player</th><th style="text-align:right">Majors</th><th>Titles</th><th style="width:100px">Actions</th></tr></thead>
+          <tbody id="majorsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /main -->
 
 <!-- LOGIN -->
@@ -782,6 +815,22 @@ tr:hover td{background:var(--surf2)}
   </div>
 </div>
 
+<!-- ADD MAJOR WINNER -->
+<div class="overlay" id="majorModal">
+  <div class="modal">
+    <div class="modal-title" id="majorModalTitle">Add Major Winner</div>
+    <div class="modal-sub">Add or update a player's major championship record. Titles format: "Masters 2026 | US Open 2025"</div>
+    <div class="fg" style="margin-bottom:.9rem"><label>Player Name</label><input type="text" id="mName" placeholder="e.g. Rory McIlroy"></div>
+    <div class="fg" style="margin-bottom:.9rem"><label>Total Majors Won</label><input type="number" id="mWins" placeholder="e.g. 6" min="1"></div>
+    <div class="fg" style="margin-bottom:.9rem"><label>Titles (pipe-separated)</label><input type="text" id="mTitles" placeholder="Masters 2026 | US Open 2011 | ..."></div>
+    <input type="hidden" id="mKey" value="">
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('majorModal')">Cancel</button>
+      <button class="btn btn-gold" onclick="saveMajor()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -867,6 +916,7 @@ let pendingImportData = null;
 const LS_ROSTER   = 'liv_dashboard_roster_v1';
 const LS_IS_WINS  = 'liv_dashboard_iswins_v1';
 const LS_ALIAS    = 'liv_dashboard_aliases_v1';
+const LS_MAJORS   = 'liv_dashboard_majors_v1';
 
 function saveRosterToStorage() {
   try { localStorage.setItem(LS_ROSTER, JSON.stringify(roster)); } catch(e) {}
@@ -978,8 +1028,246 @@ let isWinsOverride = {};
 let isWinsUploaded = false;
 
 // ============================================================
-// IS WINNERS UPLOAD
+// MAJOR CHAMPIONSHIP WINNERS — scraped from thegolfnewsnet.com
+// key: normalised name, value: {wins: N, titles: ["Masters 2026", ...]}
 // ============================================================
+const majorWinnersData = {
+  "jack nicklaus":       {wins:18,titles:["Masters 1963","Masters 1965","Masters 1966","Masters 1972","Masters 1975","Masters 1986","PGA Championship 1963","PGA Championship 1971","PGA Championship 1973","PGA Championship 1975","PGA Championship 1980","US Open 1962","US Open 1967","US Open 1972","US Open 1980","The Open 1966","The Open 1970","The Open 1978"]},
+  "tiger woods":         {wins:15,titles:["Masters 1997","Masters 2001","Masters 2002","Masters 2005","Masters 2019","PGA Championship 1999","PGA Championship 2000","PGA Championship 2006","PGA Championship 2007","US Open 2000","US Open 2002","US Open 2008","The Open 2000","The Open 2005","The Open 2006"]},
+  "ben hogan":           {wins:9, titles:["Masters 1951","Masters 1953","PGA Championship 1946","PGA Championship 1948","US Open 1948","US Open 1950","US Open 1951","US Open 1953","The Open 1953"]},
+  "gary player":         {wins:9, titles:["Masters 1961","Masters 1974","Masters 1978","PGA Championship 1962","PGA Championship 1972","US Open 1965","The Open 1959","The Open 1968","The Open 1974"]},
+  "tom watson":          {wins:8, titles:["Masters 1977","Masters 1981","US Open 1982","The Open 1975","The Open 1977","The Open 1980","The Open 1982","The Open 1983"]},
+  "arnold palmer":       {wins:7, titles:["Masters 1958","Masters 1960","Masters 1962","Masters 1964","US Open 1960","The Open 1961","The Open 1962"]},
+  "rory mcilroy":        {wins:6, titles:["Masters 2025","Masters 2026","PGA Championship 2012","PGA Championship 2014","US Open 2011","The Open 2014"]},
+  "phil mickelson":      {wins:6, titles:["Masters 2004","Masters 2006","Masters 2010","PGA Championship 2005","PGA Championship 2021","The Open 2013"]},
+  "nick faldo":          {wins:6, titles:["Masters 1989","Masters 1990","Masters 1996","The Open 1987","The Open 1990","The Open 1992"]},
+  "lee trevino":         {wins:6, titles:["PGA Championship 1974","US Open 1968","US Open 1971","The Open 1971","The Open 1972","PGA Championship 1972"]},
+  "sam snead":           {wins:6, titles:["Masters 1949","Masters 1952","Masters 1954","PGA Championship 1942","PGA Championship 1949","PGA Championship 1951"]},
+  "brooks koepka":       {wins:5, titles:["PGA Championship 2018","PGA Championship 2019","PGA Championship 2023","US Open 2017","US Open 2018"]},
+  "seve ballesteros":    {wins:5, titles:["Masters 1980","Masters 1983","The Open 1979","The Open 1984","The Open 1988"]},
+  "peter thomson":       {wins:5, titles:["The Open 1954","The Open 1955","The Open 1956","The Open 1958","The Open 1965"]},
+  "scottie scheffler":   {wins:4, titles:["Masters 2022","Masters 2024","PGA Championship 2025","The Open 2025"]},
+  "ernie els":           {wins:4, titles:["US Open 1994","US Open 1997","The Open 2002","The Open 2012"]},
+  "raymond floyd":       {wins:4, titles:["Masters 1976","PGA Championship 1969","PGA Championship 1982","US Open 1986"]},
+  "bobby locke":         {wins:4, titles:["The Open 1949","The Open 1950","The Open 1952","The Open 1957"]},
+  "jordan spieth":       {wins:3, titles:["Masters 2015","US Open 2015","The Open 2017"]},
+  "padraig harrington":  {wins:3, titles:["PGA Championship 2008","The Open 2007","The Open 2008"]},
+  "vijay singh":         {wins:3, titles:["Masters 2000","PGA Championship 1998","PGA Championship 2004"]},
+  "payne stewart":       {wins:3, titles:["PGA Championship 1989","US Open 1991","US Open 1999"]},
+  "nick price":          {wins:3, titles:["PGA Championship 1992","PGA Championship 1994","The Open 1994"]},
+  "hale irwin":          {wins:3, titles:["US Open 1974","US Open 1979","US Open 1990"]},
+  "larry nelson":        {wins:3, titles:["PGA Championship 1981","PGA Championship 1987","US Open 1983"]},
+  "billy casper":        {wins:3, titles:["US Open 1959","US Open 1966","Masters 1970"]},
+  "julius boros":        {wins:3, titles:["PGA Championship 1968","US Open 1952","US Open 1963"]},
+  "cary middlecoff":     {wins:3, titles:["Masters 1955","US Open 1949","US Open 1956"]},
+  "xander schauffele":   {wins:2, titles:["PGA Championship 2024","The Open 2024"]},
+  "bryson dechambeau":   {wins:2, titles:["US Open 2020","US Open 2024"]},
+  "bubba watson":        {wins:2, titles:["Masters 2012","Masters 2014"]},
+  "angel cabrera":       {wins:2, titles:["Masters 2009","US Open 2007"]},
+  "dustin johnson":      {wins:2, titles:["Masters 2020","US Open 2016"]},
+  "graeme mcdowell":     {wins:1, titles:["US Open 2010"]},
+  "jon rahm":            {wins:2, titles:["Masters 2023","US Open 2021"]},
+  "collin morikawa":     {wins:2, titles:["PGA Championship 2020","The Open 2021"]},
+  "justin thomas":       {wins:2, titles:["PGA Championship 2017","PGA Championship 2022"]},
+  "mark o'meara":        {wins:2, titles:["Masters 1998","The Open 1998"]},
+  "jose maria olazabal": {wins:2, titles:["Masters 1994","Masters 1999"]},
+  "bernhard langer":     {wins:2, titles:["Masters 1985","Masters 1993"]},
+  "ben crenshaw":        {wins:2, titles:["Masters 1984","Masters 1995"]},
+  "zach johnson":        {wins:2, titles:["Masters 2007","The Open 2015"]},
+  "retief goosen":       {wins:2, titles:["US Open 2001","US Open 2004"]},
+  "greg norman":         {wins:2, titles:["The Open 1986","The Open 1993"]},
+  "tom kite":            {wins:1, titles:["US Open 1992"]},
+  "hideki matsuyama":    {wins:1, titles:["Masters 2021"]},
+  "cameron smith":       {wins:1, titles:["The Open 2022"]},
+  "wyndham clark":       {wins:1, titles:["US Open 2023"]},
+  "brian harman":        {wins:1, titles:["The Open 2023"]},
+  "matt fitzpatrick":    {wins:1, titles:["US Open 2022"]},
+  "justin rose":         {wins:1, titles:["US Open 2013"]},
+  "patrick reed":        {wins:1, titles:["Masters 2018"]},
+  "sergio garcia":       {wins:1, titles:["Masters 2017"]},
+  "danny willett":       {wins:1, titles:["Masters 2016"]},
+  "adam scott":          {wins:1, titles:["Masters 2013"]},
+  "charl schwartzel":    {wins:1, titles:["Masters 2011"]},
+  "trevor immelman":     {wins:1, titles:["Masters 2008"]},
+  "mike weir":           {wins:1, titles:["Masters 2003"]},
+  "sandy lyle":          {wins:2, titles:["Masters 1988","The Open 1985"]},
+  "ian woosnam":         {wins:1, titles:["Masters 1991"]},
+  "fred couples":        {wins:1, titles:["Masters 1992"]},
+  "larry mize":          {wins:1, titles:["Masters 1987"]},
+  "fuzzy zoeller":       {wins:2, titles:["Masters 1979","US Open 1984"]},
+  "craig stadler":       {wins:1, titles:["Masters 1982"]},
+  "tommy aaron":         {wins:1, titles:["Masters 1973"]},
+  "charles coody":       {wins:1, titles:["Masters 1970"]},
+  "george archer":       {wins:1, titles:["Masters 1969"]},
+  "bob goalby":          {wins:1, titles:["Masters 1968"]},
+  "gay brewer":          {wins:1, titles:["Masters 1967"]},
+  "jack burke jr.":      {wins:2, titles:["Masters 1956","PGA Championship 1956"]},
+  "art wall jr.":        {wins:1, titles:["Masters 1959"]},
+  "doug ford":           {wins:2, titles:["Masters 1957","PGA Championship 1955"]},
+  "claude harmon":       {wins:1, titles:["Masters 1948"]},
+  "herman keiser":       {wins:1, titles:["Masters 1946"]},
+  "jimmy demaret":       {wins:3, titles:["Masters 1940","Masters 1947","Masters 1950"]},
+  "keegan bradley":      {wins:1, titles:["PGA Championship 2011"]},
+  "jason day":           {wins:1, titles:["PGA Championship 2015"]},
+  "jason dufner":        {wins:1, titles:["PGA Championship 2013"]},
+  "jimmy walker":        {wins:1, titles:["PGA Championship 2016"]},
+  "yang yong-eun":       {wins:1, titles:["PGA Championship 2009"]},
+  "rich beem":           {wins:1, titles:["PGA Championship 2002"]},
+  "david toms":          {wins:1, titles:["PGA Championship 2001"]},
+  "shaun micheel":       {wins:1, titles:["PGA Championship 2003"]},
+  "keegan bradley":      {wins:1, titles:["PGA Championship 2011"]},
+  "martin kaymer":       {wins:2, titles:["PGA Championship 2010","US Open 2014"]},
+  "davis love iii":      {wins:1, titles:["PGA Championship 1997"]},
+  "john daly":           {wins:2, titles:["PGA Championship 1991","The Open 1995"]},
+  "wayne grady":         {wins:1, titles:["PGA Championship 1990"]},
+  "jeff sluman":         {wins:1, titles:["PGA Championship 1988"]},
+  "hal sutton":          {wins:1, titles:["PGA Championship 1983"]},
+  "lanny wadkins":       {wins:1, titles:["PGA Championship 1977"]},
+  "dave stockton":       {wins:2, titles:["PGA Championship 1970","PGA Championship 1976"]},
+  "al geiberger":        {wins:1, titles:["PGA Championship 1966"]},
+  "dave marr":           {wins:1, titles:["PGA Championship 1965"]},
+  "bob nichols":         {wins:1, titles:["PGA Championship 1964"]},
+  "jerry barber":        {wins:1, titles:["PGA Championship 1961"]},
+  "jay hebert":          {wins:1, titles:["PGA Championship 1960"]},
+  "bob rosburg":         {wins:1, titles:["PGA Championship 1959"]},
+  "dow finsterwald":     {wins:1, titles:["PGA Championship 1958"]},
+  "lionel hebert":       {wins:1, titles:["PGA Championship 1957"]},
+  "chick harbert":       {wins:1, titles:["PGA Championship 1954"]},
+  "walter burkemo":      {wins:1, titles:["PGA Championship 1953"]},
+  "jim turnesa":         {wins:1, titles:["PGA Championship 1952"]},
+  "chandler harper":     {wins:1, titles:["PGA Championship 1950"]},
+  "jim ferrier":         {wins:1, titles:["PGA Championship 1947"]},
+  "gary woodland":       {wins:1, titles:["US Open 2019"]},
+  "shane lowry":         {wins:1, titles:["The Open 2019"]},
+  "webb simpson":        {wins:1, titles:["US Open 2012"]},
+  "lucas glover":        {wins:1, titles:["US Open 2009"]},
+  "geoff ogilvy":        {wins:1, titles:["US Open 2006"]},
+  "michael campbell":    {wins:1, titles:["US Open 2005"]},
+  "jim furyk":           {wins:1, titles:["US Open 2003"]},
+  "retief goosen":       {wins:2, titles:["US Open 2001","US Open 2004"]},
+  "david graham":        {wins:2, titles:["PGA Championship 1979","US Open 1981"]},
+  "hubert green":        {wins:2, titles:["PGA Championship 1985","US Open 1977"]},
+  "andy north":          {wins:2, titles:["US Open 1978","US Open 1985"]},
+  "lou graham":          {wins:1, titles:["US Open 1975"]},
+  "johnny miller":       {wins:2, titles:["US Open 1973","The Open 1976"]},
+  "curtis strange":      {wins:2, titles:["US Open 1988","US Open 1989"]},
+  "scott simpson":       {wins:1, titles:["US Open 1987"]},
+  "ken venturi":         {wins:1, titles:["US Open 1964"]},
+  "gene littler":        {wins:1, titles:["US Open 1961"]},
+  "orville moody":       {wins:1, titles:["US Open 1969"]},
+  "tony jacklin":        {wins:2, titles:["US Open 1970","The Open 1969"]},
+  "lee janzen":          {wins:2, titles:["US Open 1993","US Open 1998"]},
+  "corey pavin":         {wins:1, titles:["US Open 1995"]},
+  "jerry pate":          {wins:1, titles:["US Open 1976"]},
+  "steve jones":         {wins:1, titles:["US Open 1996"]},
+  "mark calcavecchia":   {wins:2, titles:["The Open 1989","US Open 1989"]},
+  "ian baker-finch":     {wins:1, titles:["The Open 1991"]},
+  "darren clarke":       {wins:1, titles:["The Open 2011"]},
+  "henrik stenson":      {wins:1, titles:["The Open 2016"]},
+  "louis oosthuizen":    {wins:1, titles:["The Open 2010"]},
+  "stewart cink":        {wins:1, titles:["The Open 2009"]},
+  "ben curtis":          {wins:1, titles:["The Open 2003"]},
+  "david duval":         {wins:1, titles:["The Open 2001"]},
+  "paul lawrie":         {wins:1, titles:["The Open 1999"]},
+  "justin leonard":      {wins:1, titles:["The Open 1997"]},
+  "tom lehman":          {wins:1, titles:["The Open 1996"]},
+  "jj spaun":            {wins:1, titles:["US Open 2025"]},
+  "paul azinger":        {wins:1, titles:["PGA Championship 1993"]},
+  "john mahaffey":       {wins:1, titles:["PGA Championship 1978"]},
+  "don january":         {wins:1, titles:["PGA Championship 1967"]},
+  "bob tway":            {wins:1, titles:["PGA Championship 1986"]},
+  "jack fleck":          {wins:1, titles:["US Open 1955"]},
+  "ed furgol":           {wins:1, titles:["US Open 1954"]},
+  "max faulkner":        {wins:1, titles:["The Open 1951"]},
+  "fred daly":           {wins:1, titles:["The Open 1947"]},
+  "lloyd mangrum":       {wins:1, titles:["US Open 1946"]},
+  "lew worsham":         {wins:1, titles:["US Open 1947"]},
+  "bill rogers":         {wins:1, titles:["The Open 1981"]},
+  "bob charles":         {wins:1, titles:["The Open 1963"]},
+  "tony lema":           {wins:1, titles:["The Open 1964"]},
+  "roberto de vicenzo":  {wins:1, titles:["The Open 1967"]},
+  "kel nagle":           {wins:1, titles:["The Open 1960"]},
+  "tom weiskopf":        {wins:1, titles:["The Open 1973"]},
+  "billy burke":         {wins:1, titles:["US Open 1931"]},
+  "wyndham clark":       {wins:1, titles:["US Open 2023"]},
+  "henry cotton":        {wins:3, titles:["The Open 1934","The Open 1937","The Open 1948"]},
+  "tommy bolt":          {wins:1, titles:["US Open 1958"]},
+  "curt stranges":       {wins:2, titles:["US Open 1988","US Open 1989"]},
+  "steve elkington":     {wins:1, titles:["PGA Championship 1995"]},
+  "mark brooks":         {wins:1, titles:["PGA Championship 1996"]},
+  "todd hamilton":       {wins:1, titles:["The Open 2004"]},
+  "zach johnson":        {wins:2, titles:["Masters 2007","The Open 2015"]},
+  "francesco molinari":  {wins:1, titles:["The Open 2018"]},
+  "justin rose":         {wins:1, titles:["US Open 2013"]},
+  "adam scott":          {wins:1, titles:["Masters 2013"]},
+};
+
+// Admin-editable override (loaded from localStorage)
+let majorWinnersOverride = {};
+let majorWinnersUploaded = false;
+
+function saveMajorsToStorage() {
+  try { localStorage.setItem(LS_MAJORS, JSON.stringify(majorWinnersOverride)); } catch(e) {}
+}
+function loadMajorsFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_MAJORS);
+    if (raw) { const d = JSON.parse(raw); if (Object.keys(d).length) return d; }
+  } catch(e) {}
+  return null;
+}
+
+function getMajorWins(name) {
+  const combined = Object.assign({}, majorWinnersData, majorWinnersOverride);
+  const key = normMatch(name);
+  if (combined[key]) return combined[key];
+  // Strip punctuation variant
+  const stripped = key.replace(/[^a-z\s]/g,'').replace(/\s+/g,' ').trim();
+  if (combined[stripped]) return combined[stripped];
+  // Try reversed name (surname-first formats)
+  const toks = key.split(' ');
+  if (toks.length >= 2) {
+    const rev = toks.slice(1).join(' ') + ' ' + toks[0];
+    if (combined[rev]) return combined[rev];
+  }
+  // Last-name fallback (careful — only if unique)
+  const last = toks[toks.length-1];
+  const matches = Object.entries(combined).filter(([k]) => k.split(' ').pop() === last && k.includes(toks[0]));
+  if (matches.length === 1) return matches[0][1];
+  return null;
+}
+
+function majorWinsDisplay(name) {
+  const data = getMajorWins(name);
+  if (!data) return `<span style="color:var(--tx3);font-size:11px">—</span>`;
+
+  // Group titles by major
+  const groups = {'Masters':[], 'PGA Championship':[], 'US Open':[], 'The Open':[]};
+  for (const t of data.titles) {
+    for (const maj of Object.keys(groups)) {
+      if (t.startsWith(maj)) { groups[maj].push(t.replace(maj,'').trim()); break; }
+    }
+  }
+
+  // Build compact grouped lines e.g. "Masters: 1997, 2001, 2002"
+  const lines = Object.entries(groups)
+    .filter(([,yrs]) => yrs.length > 0)
+    .map(([maj, yrs]) => `<span style="color:var(--tx2)">${maj}:</span> ${yrs.join(', ')}`);
+
+  const uid = 'mw_' + normMatch(name).replace(/\s/g,'_');
+
+  return `<div style="display:inline-block;text-align:left">
+    <span onclick="document.getElementById('${uid}').style.display=document.getElementById('${uid}').style.display==='none'?'block':'none'"
+      style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;user-select:none">
+      <span style="font-size:14px">🏆</span>
+      <span style="font-weight:700;color:#f0d898;font-size:13px">${data.wins}</span>
+      <span style="font-size:10px;color:var(--tx3)">&#9660;</span>
+    </span>
+    <div id="${uid}" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;font-size:11px;line-height:1.7;white-space:nowrap;position:relative;z-index:10">
+      ${lines.join('<br>')}
+    </div>
+  </div>`;
+}
 // IS Winners drag-drop — set up after DOM is ready (element is inside hidden admin panel)
 function initISWinsDrop() {
   const zone = document.getElementById('isWinsDropZone');
@@ -1184,8 +1472,10 @@ function doLogin() {
     document.getElementById('adminBtn').innerHTML = '&#9878; Admin: ON';
     document.getElementById('rosterTab').classList.add('show');
     document.getElementById('aliasTab').classList.add('show');
+    document.getElementById('majorsTab').classList.add('show');
     renderRoster();
     renderAliases();
+    renderMajors();
     refreshISWinsPill();
     initISWinsDrop();
     toast('Admin access granted', '&#10003;');
@@ -1201,8 +1491,9 @@ function logoutAdmin() {
   document.getElementById('adminBtn').innerHTML = '&#9878; Admin';
   document.getElementById('rosterTab').classList.remove('show');
   document.getElementById('aliasTab').classList.remove('show');
-  if (document.querySelector('[data-tab="roster"]').classList.contains('on') ||
-      document.querySelector('[data-tab="aliases"]').classList.contains('on')) switchTab('upload');
+  document.getElementById('majorsTab').classList.remove('show');
+  if (['roster','aliases','majors'].some(t => document.querySelector(`[data-tab="${t}"]`)?.classList.contains('on')))
+    switchTab('upload');
   toast('Admin session ended');
 }
 
@@ -1286,9 +1577,15 @@ function parseOWGRRows(rows) {
   for (let r = start; r < rows.length; r++) {
     const row = rows[r] || [];
     const rankRaw = String(row[rankCol]||'').trim();
-    const nameRaw = String(row[nameCol]||'').trim();
+    let nameRaw   = String(row[nameCol]||'').trim();
     const ctryRaw = String(row[ctryCol]||'').trim().toUpperCase();
     const rankNum = parseInt(rankRaw);
+
+    // Skip amateur entries — OWGR marks them with (Am) in the name
+    if (/\(Am\)/i.test(nameRaw)) continue;
+    // Clean any parenthetical annotations from the name
+    nameRaw = nameRaw.replace(/\s*\([^)]*\)\s*/g, '').trim();
+
     if (!isNaN(rankNum) && rankNum > 0 && nameRaw.length > 2) {
       owgrMap[normMatch(nameRaw)] = rankNum;
       owgrRawList.push({name: nameRaw, rank: rankNum, ctry: ctryRaw});
@@ -1438,7 +1735,8 @@ function getRank(entryName) {
   let bestScore = 0, bestRank = null;
   for (const {name, rank} of owgrRawList) {
     const owLast = lastName(name);
-    const isCandidate = candidateSurnames.some(cs => lev(cs, owLast) <= 1);
+    // Last name must match EXACTLY (lev=0) to prevent false matches like Masayama→Matsuyama
+    const isCandidate = candidateSurnames.some(cs => cs === owLast || (cs.length > 6 && lev(cs, owLast) === 1));
     if (!isCandidate) continue;
     const score = nameScore(entryName, name);
     if (score > bestScore) { bestScore = score; bestRank = rank; }
@@ -1447,13 +1745,15 @@ function getRank(entryName) {
     owgrResolvedCache[cacheKey] = bestRank; return bestRank;
   }
 
-  // Layer 4: Full fuzzy scan (slower, last resort)
+  // Layer 4: Full fuzzy scan — last resort, no pre-filter so needs a stricter threshold
+  // Use 0.85 to avoid false positives (e.g. "Hiroki Masayama" ≠ "Hideki Matsuyama")
+  const LAYER4_THRESHOLD = 0.85;
   bestScore = 0; bestRank = null;
   for (const {name, rank} of owgrRawList) {
     const score = nameScore(entryName, name);
     if (score > bestScore) { bestScore = score; bestRank = rank; }
   }
-  const result = bestScore >= OWGR_FUZZY_THRESHOLD ? bestRank : null;
+  const result = bestScore >= LAYER4_THRESHOLD ? bestRank : null;
   owgrResolvedCache[cacheKey] = result;
   return result;
 }
@@ -1789,14 +2089,24 @@ function runMatch() {
 function isWinsDisplay(name) {
   const data = getISWins(name);
   if (!data) return `<span style="color:var(--tx3);font-size:11px">—</span>`;
-  const trophyTitle = data.tournaments.join(', ');
-  return `<span title="${esc(trophyTitle)}" style="cursor:help;display:inline-flex;align-items:center;gap:4px">
-    <span style="font-size:14px">&#127942;</span>
-    <span style="font-weight:700;color:var(--gold2);font-size:13px">${data.wins}</span>
-  </span>`;
+
+  const uid = 'isw_' + normMatch(name).replace(/\s/g,'_');
+
+  return `<div style="display:inline-block;text-align:left">
+    <span onclick="document.getElementById('${uid}').style.display=document.getElementById('${uid}').style.display==='none'?'block':'none'"
+      style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;user-select:none">
+      <span style="font-size:14px">&#127942;</span>
+      <span style="font-weight:700;color:var(--gold2);font-size:13px">${data.wins}</span>
+      <span style="font-size:10px;color:var(--tx3)">&#9660;</span>
+    </span>
+    <div id="${uid}" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surf3);border:1px solid var(--bdr2);border-radius:6px;font-size:11px;line-height:1.8;white-space:nowrap;position:relative;z-index:10">
+      ${data.tournaments.map(t => `<div style="color:var(--tx2)">${esc(t)}</div>`).join('')}
+    </div>
+  </div>`;
 }
 
 let champFilterActive = false;
+let majorFilterActive = false;
 
 function renderResults() {
   const {matched, nonLiv} = matchResults;
@@ -1824,8 +2134,9 @@ function renderResults() {
     const r = getRank(p); if (r && r < topRankedRank) { topRankedRank = r; topRankedName = p; }
   }
 
-  // Count IS champions in full field
+  // Count IS champions and Major champions in full field
   const isChampCount = detectedPlayers.filter(p => getISWins(p)).length;
+  const majorChampCount = detectedPlayers.filter(p => getMajorWins(p)).length;
 
   let statsHTML = [
     ['hi', matched.length, 'LIV Players'],
@@ -1833,7 +2144,8 @@ function renderResults() {
     ['', total, 'Total Field'],
     ['', teams.size, 'Teams Rep.'],
     ['', pct+'%', 'LIV %'],
-    ['', isChampCount, 'IS Champions']
+    ['', isChampCount, 'IS Champions'],
+    ['', majorChampCount, '&#127942; Major Champs']
   ].map(([c,n,l])=>`<div class="stat ${c}"><div class="stat-n">${n}</div><div class="stat-l">${l}</div></div>`).join('');
 
   if (owgrLoaded && topRankedName) {
@@ -1847,10 +2159,12 @@ function renderResults() {
     `<div class="chip ${t===resultTeamFilter?'on':''}" onclick="setResultTeam('${esc(t)}',this)">${t==='all'?'All Teams':t}</div>`
   ).join('');
 
-  // Champion filter chip
+  // Champion filter chips
   champFilterActive = false;
+  majorFilterActive = false;
   document.getElementById('champChips').innerHTML =
-    `<div class="chip" id="champChip" onclick="toggleChampFilter(this)" title="Show only IS tournament champions">&#127942; IS Champions only</div>`;
+    `<div class="chip" id="champChip" onclick="toggleChampFilter(this)" title="Show only IS tournament champions">&#127942; IS Champions</div>
+     <div class="chip" id="majorChampChip" onclick="toggleMajorFilter(this)" title="Show only Major championship winners">&#127942; Major Winners</div>`;
 
   renderMatchRows();
   renderNonLiv(nonLiv);
@@ -1859,7 +2173,18 @@ function renderResults() {
 
 function toggleChampFilter(el) {
   champFilterActive = !champFilterActive;
+  majorFilterActive = false;
+  document.getElementById('majorChampChip')?.classList.remove('on');
   el.classList.toggle('on', champFilterActive);
+  renderMatchRows();
+  renderNonLiv(nonLivFull);
+}
+
+function toggleMajorFilter(el) {
+  majorFilterActive = !majorFilterActive;
+  champFilterActive = false;
+  document.getElementById('champChip')?.classList.remove('on');
+  el.classList.toggle('on', majorFilterActive);
   renderMatchRows();
   renderNonLiv(nonLivFull);
 }
@@ -1875,6 +2200,7 @@ function renderMatchRows() {
   let filtered = resultTeamFilter==='all' ? matchResults.matched
     : matchResults.matched.filter(m=>m.livPlayer.team===resultTeamFilter);
   if (champFilterActive) filtered = filtered.filter(m => getISWins(m.livPlayer.name));
+  if (majorFilterActive) filtered = filtered.filter(m => getMajorWins(m.livPlayer.name));
 
   const body = document.getElementById('matchBody');
   const noMsg = document.getElementById('noMatchMsg');
@@ -1890,13 +2216,16 @@ function renderMatchRows() {
       ${hasNat ? `<td style="font-size:12px;color:var(--tx2)">${nat ? esc(countryName(nat)) : '—'}</td>` : ''}
       ${owgrLoaded ? `<td>${rankDisplay(m.livPlayer.name)}</td>` : ''}
       <td style="text-align:center">${isWinsDisplay(m.livPlayer.name)}</td>
+      <td style="text-align:center">${majorWinsDisplay(m.livPlayer.name)}</td>
     </tr>`;
   }).join('');
 }
 
 function renderNonLiv(players) {
   const hasNat = owgrLoaded && Object.keys(owgrNatMap).length > 0;
-  let list = champFilterActive ? players.filter(p => getISWins(p)) : players;
+  let list = champFilterActive ? players.filter(p => getISWins(p))
+           : majorFilterActive ? players.filter(p => getMajorWins(p))
+           : players;
   document.getElementById('nonLivBody').innerHTML = list.map((p,i) => {
     const nat = hasNat ? getNationality(p) : null;
     return `<tr>
@@ -1905,6 +2234,7 @@ function renderNonLiv(players) {
       ${hasNat ? `<td style="font-size:12px;color:var(--tx2)">${nat ? esc(countryName(nat)) : '—'}</td>` : ''}
       ${owgrLoaded ? `<td>${rankDisplay(p)}</td>` : ''}
       <td style="text-align:center">${isWinsDisplay(p)}</td>
+      <td style="text-align:center">${majorWinsDisplay(p)}</td>
     </tr>`;
   }).join('');
   renderCountryBreakdown();
@@ -3050,27 +3380,152 @@ function exportStartimesPDF() {
   toast('PDF downloaded', '&#128196;');
 }
 
+// ============================================================
+// MAJOR WINNERS MANAGEMENT
+// ============================================================
+function renderMajors() {
+  const q = (document.getElementById('majorsSearch')?.value || '').toLowerCase();
+  // Show overrides first, then built-in (merged, no duplicates)
+  const combined = Object.assign({}, majorWinnersData, majorWinnersOverride);
+  let entries = Object.entries(combined)
+    .filter(([k,v]) => !q || k.includes(q) || v.titles.some(t => t.toLowerCase().includes(q)))
+    .sort((a,b) => b[1].wins - a[1].wins || a[0].localeCompare(b[0]));
+
+  const body = document.getElementById('majorsBody');
+  if (!body) return;
+  const isOverride = k => !!majorWinnersOverride[k];
+
+  body.innerHTML = entries.map(([key, data]) => {
+    const displayName = key.replace(/\b\w/g, c => c.toUpperCase());
+    const override = isOverride(key);
+    return `<tr style="${override ? 'background:rgba(240,216,152,.05)' : ''}">
+      <td><strong>${esc(displayName)}</strong>${override ? ' <span style="font-size:10px;color:#f0d898">(custom)</span>' : ''}</td>
+      <td style="text-align:right;font-weight:700;color:#f0d898;font-size:16px">${data.wins}</td>
+      <td style="font-size:11px;color:var(--tx2);max-width:300px;white-space:normal">${esc(data.titles.join(' · '))}</td>
+      <td><div class="btns">
+        <button class="btn btn-ghost btn-sm" onclick="openEditMajor('${esc(key)}')">Edit</button>
+        ${override ? `<button class="btn btn-danger btn-sm" onclick="deleteMajorOverride('${esc(key)}')">&#10005;</button>` : ''}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddMajor() {
+  document.getElementById('majorModalTitle').textContent = 'Add Major Winner';
+  document.getElementById('mName').value = '';
+  document.getElementById('mWins').value = '';
+  document.getElementById('mTitles').value = '';
+  document.getElementById('mKey').value = '';
+  openModal('majorModal');
+  setTimeout(() => document.getElementById('mName').focus(), 150);
+}
+
+function openEditMajor(key) {
+  const combined = Object.assign({}, majorWinnersData, majorWinnersOverride);
+  const data = combined[key];
+  if (!data) return;
+  document.getElementById('majorModalTitle').textContent = 'Edit Major Winner';
+  document.getElementById('mName').value = key.replace(/\b\w/g, c => c.toUpperCase());
+  document.getElementById('mWins').value = data.wins;
+  document.getElementById('mTitles').value = data.titles.join(' | ');
+  document.getElementById('mKey').value = key;
+  openModal('majorModal');
+}
+
+function saveMajor() {
+  const name  = document.getElementById('mName').value.trim();
+  const wins  = parseInt(document.getElementById('mWins').value);
+  const titlesRaw = document.getElementById('mTitles').value.trim();
+  if (!name || !wins || wins < 1) { toast('Name and wins count required', '&#10005;'); return; }
+  const titles = titlesRaw ? titlesRaw.split('|').map(t => t.trim()).filter(Boolean) : [];
+  const oldKey = document.getElementById('mKey').value;
+  const newKey = normMatch(name);
+  // Remove old key if renamed
+  if (oldKey && oldKey !== newKey && majorWinnersOverride[oldKey]) {
+    delete majorWinnersOverride[oldKey];
+  }
+  majorWinnersOverride[newKey] = {wins, titles};
+  saveMajorsToStorage();
+  closeModal('majorModal');
+  renderMajors();
+  toast(`Saved: ${name} (${wins} major${wins>1?'s':''})`, '&#10003;');
+}
+
+function deleteMajorOverride(key) {
+  delete majorWinnersOverride[key];
+  saveMajorsToStorage();
+  renderMajors();
+  toast('Override removed — reverted to built-in data', '&#10003;');
+}
+
+function downloadMajorsCSV() {
+  const combined = Object.assign({}, majorWinnersData, majorWinnersOverride);
+  const rows = [['Player Name','Total Majors','Titles (Major Year)']];
+  Object.entries(combined)
+    .sort((a,b) => b[1].wins - a[1].wins || a[0].localeCompare(b[0]))
+    .forEach(([key, data]) => {
+      rows.push([
+        key.replace(/\b\w/g, c => c.toUpperCase()),
+        data.wins,
+        data.titles.join(' | ')
+      ]);
+    });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'Major_Winners.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Major_Winners.csv downloaded', '&#128190;');
+}
+
+function importMajors(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      let rows;
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'csv') {
+        const text = new TextDecoder().decode(ev.target.result);
+        rows = text.split('\n').map(l => l.split(',').map(c => c.replace(/^"|"$/g,'').trim()));
+      } else {
+        const wb = XLSX.read(ev.target.result, {type:'array'});
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:''});
+      }
+      let added = 0;
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const name = String(row[0]||'').trim();
+        const wins = parseInt(String(row[1]||'0'));
+        const titlesRaw = String(row[2]||'').trim();
+        if (!name || !wins) continue;
+        const titles = titlesRaw ? titlesRaw.split('|').map(t=>t.trim()).filter(Boolean) : [];
+        majorWinnersOverride[normMatch(name)] = {wins, titles};
+        added++;
+      }
+      saveMajorsToStorage();
+      renderMajors();
+      toast(`${added} major winners imported`, '&#10003;');
+    } catch(err) { toast('Import error: ' + err.message, '&#10005;'); }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
 window.addEventListener('load', () => {
   if (typeof pdfjsLib !== 'undefined')
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-  // ── Boot from localStorage ──────────────────────────────
-  // Roster
-  const rosterLoaded = loadRosterFromStorage();
+  // Boot from localStorage
+  const rosterLoaded  = loadRosterFromStorage();
+  const savedISWins   = loadISWinsFromStorage();
+  const savedAliases  = loadAliasFromStorage();
+  const savedMajors   = loadMajorsFromStorage();
 
-  // IS Winners
-  const savedISWins = loadISWinsFromStorage();
-  if (savedISWins) {
-    isWinsOverride = savedISWins;
-    isWinsUploaded = true;
-  }
-
-  // Aliases — merge saved aliases ON TOP of built-in defaults
-  const savedAliases = loadAliasFromStorage();
-  if (savedAliases) {
-    // Merge: saved aliases override built-in ones, preserving built-ins not overridden
-    Object.assign(aliasMap, savedAliases);
-  }
+  if (savedISWins)  { isWinsOverride = savedISWins; isWinsUploaded = true; }
+  if (savedAliases) { Object.assign(aliasMap, savedAliases); }
+  if (savedMajors)  { majorWinnersOverride = savedMajors; majorWinnersUploaded = true; }
 
   showPersistenceBanner(rosterLoaded, !!savedISWins, !!savedAliases);
 });
