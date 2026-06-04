@@ -1828,7 +1828,7 @@ function parseOWGRRows(rows) {
     if (!isNaN(rankNum) && rankNum > 0 && nameRaw.length > 2) {
       owgrMap[normMatch(nameRaw)] = rankNum;
       owgrRawList.push({name: nameRaw, rank: rankNum, ctry: ctryRaw});
-      if (ctryRaw) owgrNatMap[normMatch(nameRaw)] = ctryRaw;
+      if (ctryRaw) owgrNatMap[normMatch(nameRaw)] = normaliseCode(ctryRaw) || ctryRaw;
       count++;
     }
   }
@@ -2109,23 +2109,68 @@ function getNationality(entryName) {
 
 // Store a nationality from entry list / startimes into entryNatMap
 // Accepts either a 2-3 letter code or a full country name
+// Maps alternative/legacy codes to the canonical code used in COUNTRY_NAMES
+const CODE_ALIASES = {
+  'MAR':'MOR', 'MA':'MOR',                          // Morocco
+  'ZA':'RSA','ZAF':'RSA',                            // South Africa
+  'AU':'AUS','AUS':'AUS',
+  'GB':'ENG','GBR':'ENG','UK':'ENG','GER':'GER','DE':'GER',
+  'US':'USA','USA':'USA','UN':'USA',
+  'JP':'JPN','KR':'KOR','TH':'THA','CN':'CHN',
+  'IN':'IND','PH':'PHI','SG':'SGP','MY':'MAS',
+  'NZ':'NZL','CA':'CAN','MX':'MEX','ZW':'ZIM',
+  'ES':'ESP','FR':'FRA','SE':'SWE','DK':'DEN',
+  'NO':'NOR','AT':'AUT','CH':'SUI','IT':'ITA',
+  'PT':'POR','FI':'FIN','PL':'POL','BE':'BEL',
+  'NL':'NED','CZ':'CZE','HU':'HUN','GR':'GRE',
+  'RO':'ROU','SK':'SVK','SI':'SLO','HR':'CRO',
+  'BG':'BUL','RS':'SRB','RU':'RUS','UA':'UKR',
+  'KZ':'KAZ','SA':'SAU','QA':'QAT','AE':'UAE',
+  'OM':'OMN','BH':'BRN','KW':'KWT','JO':'JOR',
+  'EG':'EGY','TN':'TUN','KE':'KEN','ZM':'ZAM',
+  'NA':'NAM','BW':'BOT','UG':'UGA',
+  'ID':'IDN','PK':'PAK','LK':'SRI','VN':'VIE',
+  'KH':'CAM','MM':'MYA','BN':'BRU','MO':'MAC',
+  'MN':'MON','FJ':'FIJ','PG':'PNG','TL':'TLS',
+  'PE':'PER','BR':'BRA','AR':'ARG','CO':'COL',
+  'CL':'CHI','VE':'VEN','PY':'PRY','UY':'URY',
+  'HK':'HKG','TW':'TPE','LK':'SRI',
+  // OWGR uses these full names sometimes
+  'CHINESE TAIPEI':'TPE','CHINESE-TAIPEI':'TPE',
+  'SOUTH AFRICA':'RSA','NEW ZEALAND':'NZL',
+  'UNITED STATES':'USA','UNITED ARAB EMIRATES':'UAE',
+  'HONG KONG':'HKG','SAUDI ARABIA':'SAU',
+  // WAGR full names → codes
+  'CZECHIA':'CZE','CZECH REPUBLIC':'CZE',
+  'SCOTLAND':'SCO','WALES':'WAL','IRELAND':'IRL',
+  'N. IRELAND':'NIR','NORTHERN IRELAND':'NIR',
+  'ENGLAND':'ENG',
+};
+
+function normaliseCode(raw) {
+  if (!raw) return null;
+  const up = raw.trim().toUpperCase();
+  // Already a known code
+  if (COUNTRY_NAMES[up]) return up;
+  // Check alias map
+  if (CODE_ALIASES[up]) return CODE_ALIASES[up];
+  // Full name → code via COUNTRY_NAMES reverse lookup
+  const lower = raw.trim().toLowerCase();
+  const found = Object.entries(COUNTRY_NAMES).find(([,n]) => n.toLowerCase() === lower);
+  if (found) return found[0];
+  // Last resort: first 3 chars (only for short codes already)
+  return up.length <= 3 ? up : up.slice(0,3);
+}
+
 function storeEntryNat(playerName, countryRaw) {
   if (!playerName || !countryRaw) return;
   const raw = String(countryRaw).trim();
   if (!raw || raw.toLowerCase() === 'nan') return;
-  // Strip amateur marker from name
   const cleanName = playerName.replace(/\s*\(a\)\s*/i, '').trim();
   const key = normMatch(cleanName);
   if (!key) return;
-  // Convert full name to code if needed
-  let code = raw.toUpperCase();
-  if (raw.length > 3) {
-    // Look up in COUNTRY_NAMES map (reverse lookup)
-    const found = Object.entries(COUNTRY_NAMES).find(([c, n]) =>
-      n.toLowerCase() === raw.toLowerCase());
-    code = found ? found[0] : raw.toUpperCase().slice(0,3);
-  }
-  entryNatMap[key] = code;
+  const code = normaliseCode(raw);
+  if (code) entryNatMap[key] = code;
 }
 const COUNTRY_NAMES = {
   'AUS':'Australia','ENG':'England','USA':'United States','JPN':'Japan','KOR':'Korea',
@@ -2531,13 +2576,21 @@ function renderResults() {
       const nat = getNationality(p);
       if (nat) fieldNats[nat] = (fieldNats[nat] || 0) + 1;
     }
-    // Sort by player count desc
+    // Deduplicate by display name — merge counts for codes mapping to the same country
     const sortedNats = Object.entries(fieldNats).sort((a,b) => b[1]-a[1]);
+    const mergedNats = {};
+    for (const [code, count] of sortedNats) {
+      const name = countryName(code);
+      if (!mergedNats[name]) mergedNats[name] = {code, count: 0};
+      mergedNats[name].count += count;
+    }
     natChips.innerHTML =
       `<div class="chip on" onclick="setNatFilter('all',this)">All Countries</div>` +
-      sortedNats.map(([code, count]) =>
-        `<div class="chip" onclick="setNatFilter('${code}',this)">${esc(countryName(code))} <span style="opacity:.6;font-size:10px">${count}</span></div>`
-      ).join('');
+      Object.entries(mergedNats)
+        .sort((a,b) => b[1].count - a[1].count)
+        .map(([name, {code, count}]) =>
+          `<div class="chip" onclick="setNatFilter('${esc(code)}',this)">${esc(name)} <span style="opacity:.6;font-size:10px">${count}</span></div>`
+        ).join('');
     natRow.style.display = 'flex';
   } else {
     natRow.style.display = 'none';
@@ -3485,7 +3538,7 @@ async function parseKoreanFormat(pdf, hasScores) {
       [[n1,c1w],[n2,c2w],[n3,c3w]].forEach(([name, cw]) => {
         if (name && cw) {
           const key = normMatch(name);
-          if (!owgrNatMap[key]) owgrNatMap[key] = cw.text;
+          if (!owgrNatMap[key]) owgrNatMap[key] = normaliseCode(cw.text) || cw.text;
         }
       });
 
@@ -3722,10 +3775,19 @@ function renderStartimes() {
       }
     }
     const sortedNats = Object.entries(natCount).sort((a,b) => b[1]-a[1]);
-    if (sortedNats.length > 1) {
+    // Deduplicate by display name — merge counts for codes that resolve to the same country
+    const merged = {};
+    for (const [code, count] of sortedNats) {
+      const name = countryName(code);
+      if (!merged[name]) merged[name] = {code, count: 0};
+      merged[name].count += count;
+    }
+    const dedupedNats = Object.entries(merged)
+      .sort((a,b) => b[1].count - a[1].count);
+    if (dedupedNats.length > 1) {
       natSelect.innerHTML = `<option value="all">All Countries</option>` +
-        sortedNats.map(([code, count]) =>
-          `<option value="${esc(code)}" ${startimesNatFilter===code?'selected':''}>${esc(countryName(code))} (${count})</option>`
+        dedupedNats.map(([name, {code, count}]) =>
+          `<option value="${esc(code)}" ${startimesNatFilter===code?'selected':''}>${esc(name)} (${count})</option>`
         ).join('');
       natRow.style.display = 'flex';
     } else {
