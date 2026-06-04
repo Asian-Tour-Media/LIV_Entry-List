@@ -428,6 +428,10 @@ tr:hover td{background:var(--surf2)}
         </div>
         <div class="chips" id="teamChips"></div>
         <div class="chips" id="champChips"></div>
+        <div id="natFilterRow" style="display:none;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.6rem">
+          <span style="font-size:11px;color:var(--tx3)">&#127760; Country:</span>
+          <div class="chips" id="natChips" style="margin:0;flex:1;flex-wrap:wrap"></div>
+        </div>
         <div class="tbl-wrap">
           <table>
             <thead>
@@ -536,6 +540,20 @@ tr:hover td{background:var(--surf2)}
 
   <!-- ===== ROSTER (admin) ===== -->
   <div class="panel" id="panel-roster">
+    <!-- Sync banner -->
+    <div class="card" style="background:rgba(91,156,246,.06);border-color:rgba(91,156,246,.25);margin-bottom:.75rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:#80b0f8;margin-bottom:3px">&#128279; Sync to all computers</div>
+          <div style="font-size:11px;color:var(--tx2)">After making changes, export <code style="color:#80b0f8">data.json</code> and upload it to your GitHub repo. Everyone gets the latest data automatically on next page load.</div>
+        </div>
+        <div class="btns">
+          <button class="btn btn-ghost" style="border-color:rgba(91,156,246,.4);color:#80b0f8" onclick="exportDataJSON()">&#8659; Export data.json</button>
+          <button class="btn btn-ghost" style="font-size:11px;color:var(--tx3)" onclick="showSyncHelp()">? How to upload</button>
+        </div>
+      </div>
+      <div id="syncStatus" style="margin-top:.6rem;font-size:11px;color:var(--tx3)"></div>
+    </div>
     <div class="card">
       <div class="card-hd">
         <div class="card-title">
@@ -651,7 +669,14 @@ tr:hover td{background:var(--surf2)}
               <button class="btn btn-ghost btn-sm" id="sortTimeBtn" onclick="setStartimesSort('time')" title="Sort by tee time">&#9201; Time</button>
             </div>
           </div>
-          <!-- Row 3: export buttons -->
+          <!-- Row 3: country filter dropdown — shown only when nationalities are available -->
+          <div id="startimesNatRow" style="display:none;align-items:center;gap:.6rem">
+            <span style="font-size:11px;color:var(--tx3);white-space:nowrap">&#127760; Country:</span>
+            <select id="startimesNatSelect" onchange="setStartimesNatFilter(this.value)" style="font-size:12px;padding:5px 10px;background:var(--surf2);color:var(--tx);border:1px solid var(--bdr2);border-radius:7px;cursor:pointer;min-width:160px">
+              <option value="all">All Countries</option>
+            </select>
+          </div>
+          <!-- Row 4: export buttons -->
           <div style="display:flex;gap:7px;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" onclick="exportStartimesXLSX()">&#128190; Excel</button>
             <button class="btn btn-ghost btn-sm" onclick="exportStartimesPDF()">&#128196; PDF</button>
@@ -827,6 +852,29 @@ tr:hover td{background:var(--surf2)}
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('majorModal')">Cancel</button>
       <button class="btn btn-gold" onclick="saveMajor()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- SYNC HELP MODAL -->
+<div class="overlay" id="syncHelpModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">How to sync data.json to GitHub</div>
+    <div style="font-size:13px;color:var(--tx2);line-height:1.8">
+      <p style="margin-bottom:.75rem">After exporting <strong style="color:var(--tx)">data.json</strong>, upload it to your GitHub repository alongside <code style="color:var(--gold2)">index.html</code>:</p>
+      <ol style="margin-left:1.25rem;color:var(--tx2)">
+        <li style="margin-bottom:.5rem">Go to your <strong style="color:var(--tx)">github.com/yourusername/liv-dashboard</strong> repository</li>
+        <li style="margin-bottom:.5rem">Click <strong style="color:var(--tx)">Add file → Upload files</strong></li>
+        <li style="margin-bottom:.5rem">Drop in <strong style="color:var(--tx)">data.json</strong> (it will replace the old one automatically)</li>
+        <li style="margin-bottom:.5rem">Click <strong style="color:var(--tx)">Commit changes</strong></li>
+        <li>Wait ~30 seconds, then everyone who refreshes will get the latest data.</li>
+      </ol>
+      <div style="margin-top:1rem;padding:.75rem;background:rgba(78,200,122,.07);border:1px solid rgba(78,200,122,.2);border-radius:8px;font-size:12px;color:#6ee09a">
+        &#10003; The dashboard auto-fetches <code>data.json</code> from GitHub every time the page loads. If the file doesn't exist yet, it falls back to localStorage — so existing data is never lost.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-gold" onclick="closeModal('syncHelpModal')">Got it</button>
     </div>
   </div>
 </div>
@@ -1993,11 +2041,42 @@ function isNameLike(s) {
     'cat 9b medical / military exemption',
     'korean pga',
     'leading player in the top 5 current oom',
-    'liv promotions qualifiers'
+    'liv promotions qualifiers',
+    // Additional headers seen in various tour entry lists
+    'top 10 previous tournament',
+    'top 10 previous event',
+    'top 5 previous tournament',
+    'sponsor exemptions',
+    'sponsor invitation',
+    'sponsor invitations',
+    'host nation exemptions',
+    'host nation',
+    'special exemptions',
+    'special invitation',
+    'qualifying school',
+    'qualifying school graduates',
+    'adt order of merit',
+    'at order of merit',
+    'order of merit',
+    'past champions',
+    'previous winners',
+    'world ranking',
+    'official world golf ranking',
+    'top 50 world ranking',
+    'invited players',
+    'invitees',
+    'promotions',
+    'category',
+    'cat 2','cat 3','cat 4','cat 5','cat 6','cat 7','cat 11','cat 14','cat 15',
   ]);
-  if (skips.has(s.toLowerCase().trim())) return false;
-  // Also catch anything that starts with "cat " followed by a number — future-proofing
-  if (/^cat\s+\d/i.test(s.trim())) return false;
+  const sl = s.toLowerCase().trim();
+  if (skips.has(sl)) return false;
+  // Catch anything starting with "cat " + number or letter
+  if (/^cat\s+[\da-z]/i.test(s.trim())) return false;
+  // Catch lines that are clearly section headers: ALL CAPS, long, no comma/period
+  if (/^[A-Z\s\/\-&0-9]+$/.test(s.trim()) && s.trim().length > 10) return false;
+  // Catch "Top N ..." patterns
+  if (/^top\s+\d+/i.test(sl)) return false;
   if (s.trim().split(/\s+/).length < 2) return false;
   return (s.match(/[a-zA-Z]/g)||[]).length / s.length > 0.6;
 }
@@ -2107,6 +2186,7 @@ function isWinsDisplay(name) {
 
 let champFilterActive = false;
 let majorFilterActive = false;
+let natFilter = 'all';
 
 function renderResults() {
   const {matched, nonLiv} = matchResults;
@@ -2166,6 +2246,30 @@ function renderResults() {
     `<div class="chip" id="champChip" onclick="toggleChampFilter(this)" title="Show only IS tournament champions">&#127942; IS Champions</div>
      <div class="chip" id="majorChampChip" onclick="toggleMajorFilter(this)" title="Show only Major championship winners">&#127942; Major Winners</div>`;
 
+  // Nationality filter — only shown when OWGR nationalities are loaded
+  natFilter = 'all';
+  const natRow = document.getElementById('natFilterRow');
+  const natChips = document.getElementById('natChips');
+  const hasNat2 = owgrLoaded && Object.keys(owgrNatMap).length > 0;
+  if (hasNat2) {
+    // Collect all unique countries from the full field
+    const fieldNats = {};
+    for (const p of detectedPlayers) {
+      const nat = getNationality(p);
+      if (nat) fieldNats[nat] = (fieldNats[nat] || 0) + 1;
+    }
+    // Sort by player count desc
+    const sortedNats = Object.entries(fieldNats).sort((a,b) => b[1]-a[1]);
+    natChips.innerHTML =
+      `<div class="chip on" onclick="setNatFilter('all',this)">All Countries</div>` +
+      sortedNats.map(([code, count]) =>
+        `<div class="chip" onclick="setNatFilter('${code}',this)">${esc(countryName(code))} <span style="opacity:.6;font-size:10px">${count}</span></div>`
+      ).join('');
+    natRow.style.display = 'flex';
+  } else {
+    natRow.style.display = 'none';
+  }
+
   renderMatchRows();
   renderNonLiv(nonLiv);
   document.getElementById('nonLivCount').textContent = nonLiv.length + ' players';
@@ -2189,6 +2293,14 @@ function toggleMajorFilter(el) {
   renderNonLiv(nonLivFull);
 }
 
+function setNatFilter(n, el) {
+  natFilter = n;
+  document.querySelectorAll('#natChips .chip').forEach(c => c.classList.remove('on'));
+  el.classList.add('on');
+  renderMatchRows();
+  renderNonLiv(nonLivFull);
+}
+
 function setResultTeam(t, el) {
   resultTeamFilter = t;
   document.querySelectorAll('#teamChips .chip').forEach(c=>c.classList.remove('on'));
@@ -2201,6 +2313,7 @@ function renderMatchRows() {
     : matchResults.matched.filter(m=>m.livPlayer.team===resultTeamFilter);
   if (champFilterActive) filtered = filtered.filter(m => getISWins(m.livPlayer.name));
   if (majorFilterActive) filtered = filtered.filter(m => getMajorWins(m.livPlayer.name));
+  if (natFilter !== 'all') filtered = filtered.filter(m => getNationality(m.livPlayer.name) === natFilter);
 
   const body = document.getElementById('matchBody');
   const noMsg = document.getElementById('noMatchMsg');
@@ -2226,6 +2339,7 @@ function renderNonLiv(players) {
   let list = champFilterActive ? players.filter(p => getISWins(p))
            : majorFilterActive ? players.filter(p => getMajorWins(p))
            : players;
+  if (natFilter !== 'all') list = list.filter(p => getNationality(p) === natFilter);
   document.getElementById('nonLivBody').innerHTML = list.map((p,i) => {
     const nat = hasNat ? getNationality(p) : null;
     return `<tr>
@@ -2782,6 +2896,7 @@ function deleteAlias(key) {
 // ============================================================
 let startimesGroups = [];   // [{group, time, tee, players:[]}]
 let startimesFilter = 'all';
+let startimesNatFilter = 'all';
 let startimesSort = 'asc';  // 'asc' | 'desc' | 'time'
 
 const startimesDrop = document.getElementById('startimesDrop');
@@ -3079,15 +3194,15 @@ async function parseAsianTourFormat(pdf) {
     const content = await page.getTextContent();
     const vp      = page.getViewport({scale:1});
     const W       = vp.width;
-    const SPLIT   = W * 0.505;
 
-    const L_GRP_MAX  = W * 0.058;
+    const SPLIT   = W * 0.440;  // lowered: right group nums can sit at ~50% (just left of old 50.5% split)
+    const L_GRP_MAX  = W * 0.090;  // widened: portrait Asian Tour has group nums at ~7-8% (was 5.8%)
     const L_NAME_MIN = W * 0.118;
     const L_NAME_MAX = W * 0.345;
-    const R_GRP_MIN  = W * 0.515;
-    const R_GRP_MAX  = W * 0.545;
-    const R_NAME_MIN = W * 0.596;
-    const R_NAME_MAX = W * 0.815;
+    const R_GRP_MIN  = W * 0.460;  // widened: catches right group nums at x=298 on portrait pages
+    const R_GRP_MAX  = W * 0.590;  // widened slightly for safety
+    const R_NAME_MIN = W * 0.580;
+    const R_NAME_MAX = W * 0.785;  // tightened: stops before nationality col at ~80% (was 0.830)
 
     const SKIP = new Set(['STARTING','FROM','TEE','Group','Time','Tee','Name','Represents',
       'MORNING','AFTERNOON','SESSION','Singapore','Open','Sentosa','Golf','Club,','The',
@@ -3173,6 +3288,7 @@ function finishStartimes(groups, filename) {
   groups.sort((a,b) => parseInt(a.group) - parseInt(b.group));
   startimesGroups = groups;
   startimesSort = 'asc';
+  startimesNatFilter = 'all';
   // Highlight the default sort button
   ['sortAscBtn','sortDescBtn','sortTimeBtn'].forEach(id => {
     const el = document.getElementById(id);
@@ -3191,6 +3307,11 @@ function setStartimesFilter(f, el) {
   startimesFilter = f;
   document.querySelectorAll('#startimesFilterChips .chip').forEach(c => c.classList.remove('on'));
   el.classList.add('on');
+  renderStartimes();
+}
+
+function setStartimesNatFilter(val) {
+  startimesNatFilter = val;
   renderStartimes();
 }
 
@@ -3255,10 +3376,89 @@ function renderStartimes() {
   let filtered = annotated;
   if (startimesFilter === 'liv') filtered = filtered.filter(g => g.players.some(p => p.isLiv));
   if (startimesFilter === 'champ') filtered = filtered.filter(g => g.players.some(p => p.isWins));
+  if (startimesNatFilter !== 'all') filtered = filtered.filter(g =>
+    g.players.some(p => getNationality(p.name) === startimesNatFilter));
   if (q) filtered = filtered.filter(g =>
     g.group.includes(q) || g.time.includes(q) ||
     g.players.some(p => p.name.toLowerCase().includes(q))
   );
+
+  // Build / refresh country filter dropdown from this field's players
+  const natRow = document.getElementById('startimesNatRow');
+  const natSelect = document.getElementById('startimesNatSelect');
+  const hasNatData = owgrLoaded && Object.keys(owgrNatMap).length > 0;
+  const anyNat = hasNatData || annotated.some(g => g.players.some(p => owgrNatMap[normMatch(p.name)]));
+  if (anyNat) {
+    const natCount = {};
+    for (const g of annotated) {
+      for (const p of g.players) {
+        const nat = getNationality(p.name);
+        if (nat) natCount[nat] = (natCount[nat]||0) + 1;
+      }
+    }
+    const sortedNats = Object.entries(natCount).sort((a,b) => b[1]-a[1]);
+    if (sortedNats.length > 1) {
+      natSelect.innerHTML = `<option value="all">All Countries</option>` +
+        sortedNats.map(([code, count]) =>
+          `<option value="${esc(code)}" ${startimesNatFilter===code?'selected':''}>${esc(countryName(code))} (${count})</option>`
+        ).join('');
+      natRow.style.display = 'flex';
+    } else {
+      natRow.style.display = 'none';
+    }
+  } else {
+    natRow.style.display = 'none';
+  }
+
+  // When a country is selected — show flat player list instead of group cards
+  if (startimesNatFilter !== 'all') {
+    const matchedPlayers = [];
+    for (const g of annotated) {
+      for (const p of g.players) {
+        if (getNationality(p.name) === startimesNatFilter) {
+          matchedPlayers.push({name: p.name, group: g.group, time: g.time, tee: g.tee,
+            isLiv: p.isLiv, livInfo: p.livInfo, isWins: p.isWins});
+        }
+      }
+    }
+    matchedPlayers.sort((a,b) => parseInt(a.group) - parseInt(b.group));
+    const tableHtml = `
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Country</th>
+                <th>Group</th>
+                <th>Time</th>
+                <th>Tee</th>
+                ${owgrLoaded ? '<th>OWGR</th>' : ''}
+                <th>IS Wins</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${matchedPlayers.map(p => {
+                const nat = getNationality(p.name);
+                return `<tr>
+                  <td${p.isLiv ? ' style="color:var(--gold2);font-weight:600"' : ''}>${esc(p.name)}${p.isLiv ? ` <span class="badge b-gold" style="font-size:9px">${esc(p.livInfo.team)}</span>` : ''}</td>
+                  <td style="font-size:12px;color:var(--tx2)">${nat ? esc(countryName(nat)) : '—'}</td>
+                  <td style="font-weight:700;color:var(--gold2)">Group ${esc(p.group)}</td>
+                  <td style="font-size:12px;color:var(--tx2)">${esc(p.time)}</td>
+                  <td style="font-size:12px;color:var(--tx3)">Tee ${esc(p.tee)}</td>
+                  ${owgrLoaded ? `<td>${rankDisplay(p.name)}</td>` : ''}
+                  <td style="text-align:center">${isWinsDisplay(p.name)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+    document.getElementById('startimesGroups').innerHTML = matchedPlayers.length
+      ? tableHtml
+      : `<div class="empty"><p>No players from ${esc(countryName(startimesNatFilter))} found in this draw.</p></div>`;
+    return;
+  }
 
   // Sort
   if (startimesSort === 'asc') {
@@ -3286,9 +3486,14 @@ function renderStartimes() {
       const owgrBadge = owgrLoaded && getRank(p.name)
         ? `<span class="rank-cell ${rankClass(getRank(p.name))}" style="font-size:11px">OWGR ${getRank(p.name)}</span>`
         : '';
+      const nat = getNationality(p.name);
+      const natBadge = nat
+        ? `<span style="font-size:10px;color:var(--tx3);margin-left:auto;white-space:nowrap;flex-shrink:0">${esc(countryName(nat))}</span>`
+        : '';
       return `<div class="group-player-row">
         <div class="player-name-cell ${p.isLiv?'is-liv':''}">${esc(p.name)}</div>
         <div class="player-badges">${livBadge}${champBadge}${owgrBadge}</div>
+        ${natBadge}
       </div>`;
     }).join('');
 
@@ -3513,11 +3718,107 @@ function importMajors(e) {
   e.target.value = '';
 }
 
-window.addEventListener('load', () => {
+// ============================================================
+// DATA.JSON — unified sync file for all admin data
+// ============================================================
+
+function exportDataJSON() {
+  // Build the combined export object with everything admin controls
+  const data = {
+    _version: 2,
+    _exported: new Date().toISOString(),
+    _info: 'LIV Golf Player Identifier — admin data. Upload to GitHub repo as data.json.',
+    roster: roster,
+    isWinsOverride: isWinsOverride,
+    aliasMap: aliasMap,
+    majorWinnersOverride: majorWinnersOverride
+  };
+
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'data.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  // Show export summary
+  const aliasCount = Object.keys(aliasMap).length;
+  const isCount = Object.keys(isWinsOverride).length;
+  const majorCount = Object.keys(majorWinnersOverride).length;
+  toast(`data.json exported — ${roster.length} players · ${aliasCount} aliases · ${isCount} IS winners · ${majorCount} major overrides`, '&#128190;');
+
+  // Update sync status in the banner
+  const status = document.getElementById('syncStatus');
+  if (status) {
+    status.innerHTML = `&#10003; Last exported: ${new Date().toLocaleString()} — now upload data.json to your GitHub repo.`;
+    status.style.color = '#6ee09a';
+  }
+}
+
+function showSyncHelp() {
+  openModal('syncHelpModal');
+}
+
+async function loadDataJSON() {
+  // Try to fetch data.json from the same origin (GitHub Pages)
+  // Works whether hosted at /data.json or /liv-dashboard/data.json
+  const candidates = ['data.json', './data.json'];
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {cache: 'no-cache'});
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data._version) continue;
+
+      let changed = false;
+
+      // Roster — only load if non-empty and different from current
+      if (Array.isArray(data.roster) && data.roster.length > 0) {
+        roster = data.roster;
+        saveRosterToStorage();
+        changed = true;
+      }
+
+      // IS Wins override
+      if (data.isWinsOverride && Object.keys(data.isWinsOverride).length > 0) {
+        isWinsOverride = data.isWinsOverride;
+        isWinsUploaded = true;
+        saveISWinsToStorage(isWinsOverride);
+        changed = true;
+      }
+
+      // Alias map — merge on top of built-in defaults
+      if (data.aliasMap && Object.keys(data.aliasMap).length > 0) {
+        Object.assign(aliasMap, data.aliasMap);
+        saveAliasToStorage();
+        changed = true;
+      }
+
+      // Major winners override
+      if (data.majorWinnersOverride && Object.keys(data.majorWinnersOverride).length > 0) {
+        majorWinnersOverride = data.majorWinnersOverride;
+        saveMajorsToStorage();
+        changed = true;
+      }
+
+      if (changed) {
+        const exported = data._exported ? new Date(data._exported).toLocaleDateString() : 'unknown date';
+        console.log(`[LIV Dashboard] Loaded data.json (exported ${exported})`);
+        return { loaded: true, exported };
+      }
+    } catch(e) {
+      // File not found or parse error — silent fail, use localStorage
+    }
+  }
+  return { loaded: false };
+}
+
+window.addEventListener('load', async () => {
   if (typeof pdfjsLib !== 'undefined')
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-  // Boot from localStorage
+  // Step 1 — load localStorage first (instant)
   const rosterLoaded  = loadRosterFromStorage();
   const savedISWins   = loadISWinsFromStorage();
   const savedAliases  = loadAliasFromStorage();
@@ -3525,24 +3826,35 @@ window.addEventListener('load', () => {
 
   if (savedISWins)  { isWinsOverride = savedISWins; isWinsUploaded = true; }
   if (savedAliases) { Object.assign(aliasMap, savedAliases); }
-  if (savedMajors)  { majorWinnersOverride = savedMajors; majorWinnersUploaded = true; }
+  if (savedMajors)  { majorWinnersOverride = savedMajors; }
 
-  showPersistenceBanner(rosterLoaded, !!savedISWins, !!savedAliases);
+  // Step 2 — fetch data.json from GitHub (overwrites localStorage with latest)
+  const result = await loadDataJSON();
+
+  // Show banner
+  if (result.loaded) {
+    showPersistenceBanner(true, true, true, result.exported);
+  } else {
+    showPersistenceBanner(rosterLoaded, !!savedISWins, !!savedAliases);
+  }
 });
 
-function showPersistenceBanner(rosterSaved, isWinsSaved, aliasesSaved) {
+function showPersistenceBanner(rosterSaved, isWinsSaved, aliasesSaved, fromGitHub) {
   if (!rosterSaved && !isWinsSaved && !aliasesSaved) return;
   const parts = [];
   if (rosterSaved) parts.push(`LIV Roster (${roster.length} players)`);
-  if (isWinsSaved) parts.push(`IS Winners (${Object.keys(isWinsOverride).length} players)`);
+  if (isWinsSaved) parts.push(`IS Winners`);
   if (aliasesSaved) parts.push(`Name Aliases`);
   const banner = document.createElement('div');
+  const isGH = !!fromGitHub;
+  const icon = isGH ? '&#127760;' : '&#10003;';
+  const source = isGH ? `Synced from GitHub <span style="opacity:.6">(exported ${fromGitHub})</span>` : `Saved data loaded`;
   banner.style.cssText = 'background:rgba(78,200,122,.08);border:1px solid rgba(78,200,122,.2);border-radius:8px;padding:9px 14px;font-size:12px;color:#6ee09a;margin-bottom:1rem;display:flex;align-items:center;gap:8px;transition:opacity 0.5s';
-  banner.innerHTML = `<span style="font-size:14px">&#10003;</span> Saved data loaded: ${parts.join(' · ')}`;
+  banner.innerHTML = `<span style="font-size:14px">${icon}</span> ${source}: ${parts.join(' · ')}`;
   const uploadPanel = document.getElementById('panel-upload');
   uploadPanel.insertBefore(banner, uploadPanel.firstChild);
-  setTimeout(() => banner.style.opacity = '0', 4000);
-  setTimeout(() => banner.remove(), 4500);
+  setTimeout(() => banner.style.opacity = '0', 5000);
+  setTimeout(() => banner.remove(), 5500);
 }
 </script>
 </body>
