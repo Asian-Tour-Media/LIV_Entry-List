@@ -843,14 +843,24 @@ tr:hover td{background:var(--surf2)}
 <div class="overlay" id="aliasModal">
   <div class="modal">
     <div class="modal-title" id="aliasModalTitle">Add Name Alias</div>
-    <div class="modal-sub">Map how a player's name appears in the <strong>entry list</strong> to their exact name on the <strong>OWGR</strong>.</div>
+    <div class="modal-sub">Map how a player's name appears in the <strong>entry list</strong> to their exact name in the ranking file.</div>
     <div class="fg" style="margin-bottom:.9rem">
       <label>Entry List Name (as it appears in your upload)</label>
-      <input type="text" id="aEntry" placeholder="e.g. Josele Ballester">
+      <input type="text" id="aEntry" placeholder="e.g. Josele Ballester (a)">
     </div>
     <div class="fg" style="margin-bottom:.9rem">
-      <label>OWGR Name (exact spelling from OWGR)</label>
+      <label id="aRankingLabel">Ranking File Name (exact spelling)</label>
       <input type="text" id="aOwgr" placeholder="e.g. Jose Luis Ballester">
+    </div>
+    <div style="display:flex;gap:.75rem;margin-bottom:.9rem">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);cursor:pointer">
+        <input type="radio" name="aliasType" id="aTypeOwgr" value="owgr" checked onchange="updateAliasTypeLabel()">
+        <span style="color:var(--green);font-weight:600">OWGR</span> <span style="color:var(--tx3)">— professional ranking</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tx2);cursor:pointer">
+        <input type="radio" name="aliasType" id="aTypeWagr" value="wagr" onchange="updateAliasTypeLabel()">
+        <span style="color:#c4b5fd;font-weight:600">WAGR</span> <span style="color:var(--tx3)">— amateur ranking</span>
+      </label>
     </div>
     <input type="hidden" id="aKey" value="">
     <div class="modal-foot">
@@ -984,6 +994,7 @@ let pendingImportData = null;
 const LS_ROSTER   = 'liv_dashboard_roster_v1';
 const LS_IS_WINS  = 'liv_dashboard_iswins_v1';
 const LS_ALIAS    = 'liv_dashboard_aliases_v1';
+const LS_ALIAS_TYPE = 'liv_dashboard_aliastype_v1';
 const LS_MAJORS   = 'liv_dashboard_majors_v1';
 
 function saveRosterToStorage() {
@@ -1018,7 +1029,10 @@ function clearISWinsFromStorage() {
 }
 
 function saveAliasToStorage() {
-  try { localStorage.setItem(LS_ALIAS, JSON.stringify(aliasMap)); } catch(e) {}
+  try {
+    localStorage.setItem(LS_ALIAS, JSON.stringify(aliasMap));
+    localStorage.setItem(LS_ALIAS_TYPE, JSON.stringify(aliasTypeMap));
+  } catch(e) {}
 }
 
 function loadAliasFromStorage() {
@@ -1026,7 +1040,14 @@ function loadAliasFromStorage() {
     const raw = localStorage.getItem(LS_ALIAS);
     if (raw) {
       const data = JSON.parse(raw);
-      if (Object.keys(data).length) return data;
+      if (Object.keys(data).length) {
+        // Also load type map
+        try {
+          const typeRaw = localStorage.getItem(LS_ALIAS_TYPE);
+          if (typeRaw) Object.assign(aliasTypeMap, JSON.parse(typeRaw));
+        } catch(e) {}
+        return data;
+      }
     }
   } catch(e) {}
   return null;
@@ -1519,6 +1540,11 @@ let aliasMap = {
   "xu andi":                   "andi xu"
 };
 
+// Tracks whether each alias points to OWGR (pro) or WAGR (amateur)
+// key: same normalised entry name as aliasMap, value: 'owgr' | 'wagr'
+// Built-in aliases default to 'owgr'; user-added aliases store their selection here
+let aliasTypeMap = {};
+
 // ============================================================
 // TABS
 // ============================================================
@@ -1686,12 +1712,24 @@ function parseWAGRRows(rows) {
   toast(count + ' WAGR amateur rankings loaded', '&#10003;');
 }
 
-// Look up a player in WAGR — strips (a) suffix before matching
+// Look up a player in WAGR — strips (a) suffix before matching, checks aliases first
 function getWAGRRank(entryName) {
   if (!wagrLoaded) return null;
-  const clean = normMatch(entryName.replace(/\s*\(a\)\s*/gi, '').trim());
+  // Strip (a) for lookup
+  const stripped = entryName.replace(/\s*\(a\)\s*/gi, '').trim();
+
+  // Check alias map — only follow if type is 'wagr'
+  const aliasKey = normOWGR(stripped);
+  if (aliasMap[aliasKey] && (aliasTypeMap[aliasKey] || 'owgr') === 'wagr') {
+    const aliasTarget = normMatch(aliasMap[aliasKey]);
+    if (wagrMap[aliasTarget]) return wagrMap[aliasTarget];
+  }
+
+  // Exact match
+  const clean = normMatch(stripped);
   if (wagrMap[clean]) return wagrMap[clean];
-  // Try reversed name (surname-first formats)
+
+  // Reversed name (surname-first formats)
   const toks = clean.split(' ');
   if (toks.length >= 2) {
     const rev = toks.slice(1).join(' ') + ' ' + toks[0];
@@ -1702,7 +1740,16 @@ function getWAGRRank(entryName) {
 
 function getWAGRNationality(entryName) {
   if (!wagrLoaded) return null;
-  const clean = normMatch(entryName.replace(/\s*\(a\)\s*/gi, '').trim());
+  const stripped = entryName.replace(/\s*\(a\)\s*/gi, '').trim();
+
+  // Check alias map — only follow WAGR-typed aliases
+  const aliasKey = normOWGR(stripped);
+  if (aliasMap[aliasKey] && (aliasTypeMap[aliasKey] || 'owgr') === 'wagr') {
+    const aliasTarget = normMatch(aliasMap[aliasKey]);
+    if (wagrNatMap[aliasTarget]) return wagrNatMap[aliasTarget];
+  }
+
+  const clean = normMatch(stripped);
   if (wagrNatMap[clean]) return wagrNatMap[clean];
   const toks = clean.split(' ');
   if (toks.length >= 2) {
@@ -1892,14 +1939,23 @@ const OWGR_FUZZY_THRESHOLD = 0.72;
 const owgrResolvedCache = {};
 
 function getRank(entryName) {
-  if (!owgrLoaded) return null;
+  // Check WAGR alias first if OWGR isn't loaded (amateur-only workflow)
+  if (!owgrLoaded) {
+    // Still respect aliases pointing to WAGR names
+    const aliasKey = normOWGR(entryName);
+    if (aliasMap[aliasKey] && wagrLoaded) {
+      const aliasTarget = normMatch(aliasMap[aliasKey].replace(/\s*\(a\)\s*/gi,'').trim());
+      if (wagrMap[aliasTarget]) return null; // let rankDisplay handle WAGR separately
+    }
+    return null;
+  }
 
   const cacheKey = normMatch(entryName);
   if (owgrResolvedCache[cacheKey] !== undefined) return owgrResolvedCache[cacheKey];
 
-  // Layer 1: Check alias map first
+  // Layer 1: Check alias map — only follow if type is 'owgr' (or unset, defaults to owgr)
   const aliasKey = normOWGR(entryName);
-  if (aliasMap[aliasKey]) {
+  if (aliasMap[aliasKey] && (aliasTypeMap[aliasKey] || 'owgr') === 'owgr') {
     const aliasResult = owgrMap[normMatch(aliasMap[aliasKey])];
     if (aliasResult) { owgrResolvedCache[cacheKey] = aliasResult; return aliasResult; }
     // Alias exists but not in OWGR — try fuzzy on the alias target
@@ -1991,10 +2047,14 @@ function rankDisplay(name) {
       : '';
     return `<span class="rank-cell ${rankClass(rank)}">${rank}${indicator}</span>`;
   }
-  // For amateurs (name contains "(a)"), check WAGR
+  // For amateurs, check WAGR (aliases are respected inside getWAGRRank)
   const wagrRank = getWAGRRank(name);
   if (wagrRank) {
-    return `<span class="rank-cell" style="color:#c4b5fd;font-size:11px" title="WAGR Amateur Ranking">WAGR ${wagrRank}</span>`;
+    // Check if alias was used
+    const stripped = name.replace(/\s*\(a\)\s*/gi,'').trim();
+    const aliasKey = normOWGR(stripped);
+    const usedAlias = aliasMap[aliasKey] ? ` <span title="Alias: ${esc(aliasMap[aliasKey])}" style="cursor:help;font-size:10px;color:var(--tx3)">~</span>` : '';
+    return `<span class="rank-cell" style="color:#c4b5fd;font-size:11px" title="WAGR Amateur Ranking">WAGR ${wagrRank}${usedAlias}</span>`;
   }
   return `<span class="rank-cell r-none">—</span>`;
 }
@@ -3051,13 +3111,18 @@ function renderAliases() {
   if (!Object.keys(aliasMap).length) { body.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display = 'none';
 
-  body.innerHTML = entries.map(([entryKey, owgrName]) => {
+  body.innerHTML = entries.map(([entryKey, targetName]) => {
     const displayEntry = entryKey.replace(/\b\w/g, c=>c.toUpperCase());
-    const rank = owgrLoaded ? getRank(displayEntry) : null;
-    const rankBadge = rank ? `<span class="badge b-top" style="font-size:10px;margin-left:6px">#${rank}</span>` : '';
+    const type = aliasTypeMap[entryKey] || 'owgr';
+    const isWagr = type === 'wagr';
+    const typeBadge = isWagr
+      ? `<span style="font-size:9px;font-weight:700;color:#c4b5fd;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.3);border-radius:4px;padding:1px 5px;margin-left:5px">WAGR</span>`
+      : `<span style="font-size:9px;font-weight:700;color:#6ee09a;background:rgba(78,200,122,.1);border:1px solid rgba(78,200,122,.25);border-radius:4px;padding:1px 5px;margin-left:5px">OWGR</span>`;
+    const rank = !isWagr && owgrLoaded ? getRank(displayEntry) : (isWagr ? getWAGRRank(displayEntry) : null);
+    const rankBadge = rank ? `<span class="badge b-top" style="font-size:10px;margin-left:4px">#${rank}</span>` : '';
     return `<tr>
-      <td>${esc(displayEntry)}${rankBadge}</td>
-      <td style="color:var(--tx2)">${esc(owgrName)}</td>
+      <td>${esc(displayEntry)}</td>
+      <td style="color:var(--tx2)">${esc(targetName)}${typeBadge}${rankBadge}</td>
       <td><div class="btns">
         <button class="btn btn-ghost btn-sm" onclick="openAddAlias('${esc(entryKey)}')">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="deleteAlias('${esc(entryKey)}')">&#10005;</button>
@@ -3066,37 +3131,62 @@ function renderAliases() {
   }).join('');
 }
 
+function updateAliasTypeLabel() {
+  const isWagr = document.getElementById('aTypeWagr').checked;
+  document.getElementById('aRankingLabel').textContent = isWagr
+    ? 'WAGR Name (exact spelling from wagr.com)'
+    : 'OWGR Name (exact spelling from OWGR)';
+  document.getElementById('aOwgr').placeholder = isWagr
+    ? 'e.g. Issam Nakrou'
+    : 'e.g. Jose Luis Ballester';
+}
+
 function openAddAlias(key) {
   document.getElementById('aliasModalTitle').textContent = key && key !== '-1' ? 'Edit Alias' : 'Add Name Alias';
   document.getElementById('aKey').value = key || '';
   if (key && key !== '-1' && aliasMap[key]) {
     document.getElementById('aEntry').value = key.replace(/\b\w/g,c=>c.toUpperCase());
     document.getElementById('aOwgr').value = aliasMap[key];
+    // Restore the type
+    const type = aliasTypeMap[key] || 'owgr';
+    document.getElementById('aTypeOwgr').checked = type === 'owgr';
+    document.getElementById('aTypeWagr').checked = type === 'wagr';
   } else {
     document.getElementById('aEntry').value = '';
     document.getElementById('aOwgr').value = '';
+    document.getElementById('aTypeOwgr').checked = true;
+    document.getElementById('aTypeWagr').checked = false;
   }
+  updateAliasTypeLabel();
   openModal('aliasModal');
   setTimeout(()=>document.getElementById('aEntry').focus(), 150);
 }
 
 function saveAlias() {
   const entry = document.getElementById('aEntry').value.trim();
-  const owgr = document.getElementById('aOwgr').value.trim();
-  if (!entry || !owgr) { toast('Both fields are required', '&#10005;'); return; }
+  const target = document.getElementById('aOwgr').value.trim();
+  const type = document.getElementById('aTypeWagr').checked ? 'wagr' : 'owgr';
+  if (!entry || !target) { toast('Both fields are required', '&#10005;'); return; }
   const oldKey = document.getElementById('aKey').value;
-  if (oldKey && oldKey !== '-1' && oldKey !== normOWGR(entry)) delete aliasMap[oldKey];
-  aliasMap[normOWGR(entry)] = owgr.toLowerCase();
+  if (oldKey && oldKey !== '-1' && oldKey !== normOWGR(entry)) {
+    delete aliasMap[oldKey];
+    delete aliasTypeMap[oldKey];
+  }
+  const newKey = normOWGR(entry);
+  aliasMap[newKey] = target.toLowerCase();
+  aliasTypeMap[newKey] = type;
   clearOwgrCache();
   saveAliasToStorage();
   closeModal('aliasModal');
   renderAliases();
   updateRankColumns();
-  toast(`Alias saved: ${entry} → ${owgr}`, '&#10003;');
+  const typeLabel = type === 'wagr' ? 'WAGR' : 'OWGR';
+  toast(`Alias saved (${typeLabel}): ${entry} → ${target}`, '&#10003;');
 }
 
 function deleteAlias(key) {
   delete aliasMap[key];
+  delete aliasTypeMap[key];
   clearOwgrCache();
   saveAliasToStorage();
   renderAliases();
@@ -3970,6 +4060,7 @@ function exportDataJSON() {
     roster: roster,
     isWinsOverride: isWinsOverride,
     aliasMap: aliasMap,
+    aliasTypeMap: aliasTypeMap,
     majorWinnersOverride: majorWinnersOverride
   };
 
@@ -4030,6 +4121,7 @@ async function loadDataJSON() {
       // Alias map — merge on top of built-in defaults
       if (data.aliasMap && Object.keys(data.aliasMap).length > 0) {
         Object.assign(aliasMap, data.aliasMap);
+        if (data.aliasTypeMap) Object.assign(aliasTypeMap, data.aliasTypeMap);
         saveAliasToStorage();
         changed = true;
       }

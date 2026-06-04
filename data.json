@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-06-04T07:29:15.754Z",
+  "_exported": "2026-06-04T08:17:00.241Z",
   "_info": "LIV Golf Player Identifier — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -444,6 +444,7 @@
   },
   "aliasMap": {
     "josele ballester": "jose luis ballester",
+    "byeong hun an": "byeong-hun an",
     "ben an": "byeong-hun an",
     "richard t. lee": "richard lee",
     "charles howell iii": "charles howell",
@@ -459,7 +460,15 @@
     "bobby bai": "bai bobby zhengkai",
     "jeyi son": "jeyi son(am)",
     "sampson zheng": "zheng sampson yunhe",
-    "byeonghun an": "byeong-hun an"
+    "byeonghun an": "byeong-hun an",
+    "shaurya binu bharathan": "shaurya binu",
+    "hugo trommetter": "hugo mazen trommetter",
+    "nizar bourehim": "mohamed nizar bourehim"
+  },
+  "aliasTypeMap": {
+    "shaurya binu bharathan": "owgr",
+    "hugo trommetter": "wagr",
+    "nizar bourehim": "wagr"
   },
   "majorWinnersOverride": {}
 }
