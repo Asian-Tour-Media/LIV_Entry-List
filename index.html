@@ -2065,114 +2065,101 @@ function clearOwgrCache() {
 
 function getNationality(entryName) {
   const key = normMatch(entryName);
+  let raw = null;
 
   // Check OWGR nationality map first (pros)
-  if (owgrNatMap[key]) return owgrNatMap[key];
+  if (owgrNatMap[key]) raw = owgrNatMap[key];
 
-  // Check alias
-  const aliasKey = normOWGR(entryName);
-  if (aliasMap[aliasKey]) {
-    const aliasNorm = normMatch(aliasMap[aliasKey]);
-    if (owgrNatMap[aliasNorm]) return owgrNatMap[aliasNorm];
+  // Check alias → OWGR map
+  if (!raw) {
+    const aliasKey = normOWGR(entryName);
+    if (aliasMap[aliasKey]) {
+      const aliasNorm = normMatch(aliasMap[aliasKey]);
+      if (owgrNatMap[aliasNorm]) raw = owgrNatMap[aliasNorm];
+    }
   }
 
   // Try fuzzy match via OWGR list
-  const rank = getRank(entryName);
-  if (rank) {
-    const matched = owgrRawList.find(p => p.rank === rank &&
-      nameScore(entryName, p.name) >= OWGR_FUZZY_THRESHOLD);
-    if (matched && matched.ctry) return matched.ctry;
+  if (!raw) {
+    const rank = getRank(entryName);
+    if (rank) {
+      const matched = owgrRawList.find(p => p.rank === rank &&
+        nameScore(entryName, p.name) >= OWGR_FUZZY_THRESHOLD);
+      if (matched && matched.ctry) raw = matched.ctry;
+    }
   }
 
   // Reversed name in owgrNatMap
-  const entryToks = normOWGR(entryName).split(' ');
-  if (entryToks.length >= 2) {
-    const reversed = entryToks.slice(1).join(' ') + ' ' + entryToks[0];
-    if (owgrNatMap[reversed]) return owgrNatMap[reversed];
+  if (!raw) {
+    const entryToks = normOWGR(entryName).split(' ');
+    if (entryToks.length >= 2) {
+      const reversed = entryToks.slice(1).join(' ') + ' ' + entryToks[0];
+      if (owgrNatMap[reversed]) raw = owgrNatMap[reversed];
+    }
   }
 
-  // Fallback: entry list / starting times nationality map (catches amateurs with (a) suffix)
-  const cleanKey = normMatch(entryName.replace(/\s*\(a\)\s*/i, '').trim());
-  if (entryNatMap[cleanKey]) return entryNatMap[cleanKey];
-  if (entryNatMap[key]) return entryNatMap[key];
-
-  // Final fallback: WAGR nationality (full country name stored directly)
-  const wagrNat = getWAGRNationality(entryName);
-  if (wagrNat) {
-    // WAGR stores full names — try to find the matching code
-    const found = Object.entries(COUNTRY_NAMES).find(([,n]) => n.toLowerCase() === wagrNat.toLowerCase());
-    return found ? found[0] : wagrNat.slice(0,3).toUpperCase();
+  // Entry list / starting times map (amateurs)
+  if (!raw) {
+    const cleanKey = normMatch(entryName.replace(/\s*\(a\)\s*/i, '').trim());
+    raw = entryNatMap[cleanKey] || entryNatMap[key] || null;
   }
 
-  return null;
+  // WAGR fallback
+  if (!raw) {
+    const wagrNat = getWAGRNationality(entryName);
+    if (wagrNat) raw = wagrNat;
+  }
+
+  // Always normalise before returning — ensures consistent codes regardless of source
+  return raw ? (normaliseCode(raw) || raw) : null;
 }
 
 // Store a nationality from entry list / startimes into entryNatMap
 // Accepts either a 2-3 letter code or a full country name
 // Maps alternative/legacy codes to the canonical code used in COUNTRY_NAMES
 const CODE_ALIASES = {
-  'MAR':'MOR', 'MA':'MOR',                          // Morocco
-  'ZA':'RSA','ZAF':'RSA',                            // South Africa
-  'AU':'AUS','AUS':'AUS',
-  'GB':'ENG','GBR':'ENG','UK':'ENG','GER':'GER','DE':'GER',
-  'US':'USA','USA':'USA','UN':'USA',
-  'JP':'JPN','KR':'KOR','TH':'THA','CN':'CHN',
-  'IN':'IND','PH':'PHI','SG':'SGP','MY':'MAS',
-  'NZ':'NZL','CA':'CAN','MX':'MEX','ZW':'ZIM',
-  'ES':'ESP','FR':'FRA','SE':'SWE','DK':'DEN',
-  'NO':'NOR','AT':'AUT','CH':'SUI','IT':'ITA',
-  'PT':'POR','FI':'FIN','PL':'POL','BE':'BEL',
-  'NL':'NED','CZ':'CZE','HU':'HUN','GR':'GRE',
-  'RO':'ROU','SK':'SVK','SI':'SLO','HR':'CRO',
-  'BG':'BUL','RS':'SRB','RU':'RUS','UA':'UKR',
-  'KZ':'KAZ','SA':'SAU','QA':'QAT','AE':'UAE',
-  'OM':'OMN','BH':'BRN','KW':'KWT','JO':'JOR',
-  'EG':'EGY','TN':'TUN','KE':'KEN','ZM':'ZAM',
-  'NA':'NAM','BW':'BOT','UG':'UGA',
-  'ID':'IDN','PK':'PAK','LK':'SRI','VN':'VIE',
-  'KH':'CAM','MM':'MYA','BN':'BRU','MO':'MAC',
-  'MN':'MON','FJ':'FIJ','PG':'PNG','TL':'TLS',
-  'PE':'PER','BR':'BRA','AR':'ARG','CO':'COL',
-  'CL':'CHI','VE':'VEN','PY':'PRY','UY':'URY',
-  'HK':'HKG','TW':'TPE','LK':'SRI',
-  // OWGR uses these full names sometimes
-  'CHINESE TAIPEI':'TPE','CHINESE-TAIPEI':'TPE',
-  'SOUTH AFRICA':'RSA','NEW ZEALAND':'NZL',
-  'UNITED STATES':'USA','UNITED ARAB EMIRATES':'UAE',
-  'HONG KONG':'HKG','SAUDI ARABIA':'SAU',
-  // WAGR full names → codes
-  'CZECHIA':'CZE','CZECH REPUBLIC':'CZE',
-  'SCOTLAND':'SCO','WALES':'WAL','IRELAND':'IRL',
+  // 2-letter ISO → canonical 3-letter
+  'AU':'AUS','GB':'ENG','GBR':'ENG','UK':'ENG','DE':'GER','US':'USA','UN':'USA',
+  'JP':'JPN','KR':'KOR','TH':'THA','CN':'CHN','IN':'IND','PH':'PHI','SG':'SGP',
+  'MY':'MAS','NZ':'NZL','CA':'CAN','MX':'MEX','ZW':'ZIM','ES':'ESP','FR':'FRA',
+  'SE':'SWE','DK':'DEN','NO':'NOR','AT':'AUT','CH':'SUI','IT':'ITA','PT':'POR',
+  'FI':'FIN','PL':'POL','BE':'BEL','NL':'NED','CZ':'CZE','HU':'HUN','GR':'GRE',
+  'RO':'ROU','SK':'SVK','SI':'SLO','HR':'CRO','BG':'BUL','RS':'SRB','RU':'RUS',
+  'UA':'UKR','KZ':'KAZ','SA':'SAU','QA':'QAT','AE':'UAE','OM':'OMN','BH':'BRN',
+  'KW':'KWT','JO':'JOR','EG':'EGY','TN':'TUN','KE':'KEN','ZM':'ZAM','NA':'NAM',
+  'BW':'BOT','UG':'UGA','ID':'IDN','PK':'PAK','LK':'SRI','VN':'VIE','KH':'CAM',
+  'MM':'MYA','BN':'BRU','MO':'MAC','MN':'MON','FJ':'FIJ','PG':'PNG','TL':'TLS',
+  'PE':'PER','BR':'BRA','AR':'ARG','CO':'COL','CL':'CHI','VE':'VEN','PY':'PRY',
+  'UY':'URY','HK':'HKG','TW':'TPE','ZA':'RSA','ZAF':'RSA','MA':'MOR',
+  'IS':'ISL','EE':'EST','LV':'LAT','LT':'LTU','LU':'LUX','GH':'GHA','NG':'NGA',
+  'TZ':'TZA','RW':'RWA','GA':'GAB','MG':'MDG','MW':'MWI','MU':'MUS','SC':'SYC',
+  'TT':'TTO','JM':'JAM','CU':'CUB','DO':'DOM','PA':'PAN','CR':'CRI','SV':'SLV',
+  'HN':'HND','NI':'NIC','BO':'BOL','EC':'ECU','PR':'PRI','GU':'GUM','BM':'BMU',
+  'BS':'BHS','BB':'BRB','LC':'LCA','SM':'SMR','GI':'GIB','IM':'IMN','LI':'LIE',
+  'SY':'SYR','LB':'LBN','IQ':'IRQ','UZ':'UZB','TR':'TUR','CK':'COK','WS':'WSM',
+  'KY':'CYM','NP':'NPL','RE':'REU',
+  // 3-letter ISO variants → canonical
+  'MAR':'MOR',                                          // Morocco (ISO 3166 vs golf code)
+  'GTM':'GUA',                                          // Guatemala
+  // Full-name uppercase variants (for case-insensitive match via normaliseCode)
+  'CHINESE TAIPEI':'TPE','CHINESE-TAIPEI':'TPE','TAIPEI':'TPE',
+  'SOUTH AFRICA':'RSA','NEW ZEALAND':'NZL','UNITED STATES':'USA',
+  'UNITED ARAB EMIRATES':'UAE','HONG KONG':'HKG','HONG KONG, CHINA':'HKG',
+  'SAUDI ARABIA':'SAU','CZECH REPUBLIC':'CZE','CZECHIA':'CZE','SLOVAK REPUBLIC':'SVK',
+  'SCOTLAND':'SCO','WALES':'WAL','IRELAND':'IRL','ENGLAND':'ENG',
   'N. IRELAND':'NIR','NORTHERN IRELAND':'NIR',
-  'ENGLAND':'ENG',
+  'SOUTH KOREA':'KOR','KOREA, REPUBLIC OF':'KOR','KOREA - REPUBLIC OF':'KOR',
+  'REPUBLIC OF KOREA':'KOR',
+  'TRINIDAD AND TOBAGO':'TTO','TRINIDAD & TOBAGO':'TTO','TRINIDAD':'TTO',
+  'MACAO':'MAC','TURKIYE':'TUR','TURKEY':'TUR',
+  'CAYMAN ISLANDS':'CYM','COOK ISLANDS':'COK','DOMINICAN REPUBLIC':'DOM',
+  'EL SALVADOR':'SLV','COSTA RICA':'CRI','PUERTO RICO':'PRI',
+  'SAINT LUCIA':'LCA','SAN MARINO':'SMR','ISLE OF MAN':'IMN','LIECHTENSTEIN':'LIE',
+  'GIBRALTAR':'GIB',
 };
 
-function normaliseCode(raw) {
-  if (!raw) return null;
-  const up = raw.trim().toUpperCase();
-  // Already a known code
-  if (COUNTRY_NAMES[up]) return up;
-  // Check alias map
-  if (CODE_ALIASES[up]) return CODE_ALIASES[up];
-  // Full name → code via COUNTRY_NAMES reverse lookup
-  const lower = raw.trim().toLowerCase();
-  const found = Object.entries(COUNTRY_NAMES).find(([,n]) => n.toLowerCase() === lower);
-  if (found) return found[0];
-  // Last resort: first 3 chars (only for short codes already)
-  return up.length <= 3 ? up : up.slice(0,3);
-}
-
-function storeEntryNat(playerName, countryRaw) {
-  if (!playerName || !countryRaw) return;
-  const raw = String(countryRaw).trim();
-  if (!raw || raw.toLowerCase() === 'nan') return;
-  const cleanName = playerName.replace(/\s*\(a\)\s*/i, '').trim();
-  const key = normMatch(cleanName);
-  if (!key) return;
-  const code = normaliseCode(raw);
-  if (code) entryNatMap[key] = code;
-}
 const COUNTRY_NAMES = {
+  // Core golf nations
   'AUS':'Australia','ENG':'England','USA':'United States','JPN':'Japan','KOR':'Korea',
   'THA':'Thailand','CHN':'China','SCO':'Scotland','WAL':'Wales','IRL':'Ireland',
   'RSA':'South Africa','ESP':'Spain','GER':'Germany','FRA':'France','SWE':'Sweden',
@@ -2188,13 +2175,86 @@ const COUNTRY_NAMES = {
   'UAE':'UAE','OMN':'Oman','BRN':'Bahrain','KWT':'Kuwait','JOR':'Jordan',
   'CYP':'Cyprus','MLT':'Malta','ISR':'Israel','GRE':'Greece','HUN':'Hungary',
   'SVK':'Slovakia','SLO':'Slovenia','CRO':'Croatia','ROU':'Romania','BUL':'Bulgaria',
-  'RUS':'Russia','UKR':'Ukraine','KAZ':'Kazakhstan','CHN':'China','HKG':'Hong Kong',
-  'MAC':'Macau','MON':'Mongolia','VIE':'Vietnam','CAM':'Cambodia','MYA':'Myanmar',
-  'LAO':'Laos','BRU':'Brunei','TLS':'Timor-Leste'
+  'RUS':'Russia','UKR':'Ukraine','KAZ':'Kazakhstan','MAC':'Macau','MON':'Mongolia',
+  'VIE':'Vietnam','CAM':'Cambodia','MYA':'Myanmar','LAO':'Laos','BRU':'Brunei',
+  'TLS':'Timor-Leste','SRB':'Serbia','BGD':'Bangladesh','GUA':'Guatemala',
+  // Additional WAGR / OWGR nations
+  'ISL':'Iceland','EST':'Estonia','LAT':'Latvia','LTU':'Lithuania','LUX':'Luxembourg',
+  'GHA':'Ghana','NGA':'Nigeria','TZA':'Tanzania','RWA':'Rwanda','GAB':'Gabon',
+  'MDG':'Madagascar','MWI':'Malawi','MUS':'Mauritius','SYC':'Seychelles',
+  'TTO':'Trinidad & Tobago','JAM':'Jamaica','CUB':'Cuba','DOM':'Dominican Republic',
+  'PAN':'Panama','CRI':'Costa Rica','SLV':'El Salvador','HND':'Honduras','NIC':'Nicaragua',
+  'BOL':'Bolivia','ECU':'Ecuador','PRI':'Puerto Rico','GUM':'Guam','BMU':'Bermuda',
+  'BHS':'Bahamas','BRB':'Barbados','LCA':'Saint Lucia','SMR':'San Marino',
+  'GIB':'Gibraltar','IMN':'Isle of Man','LIE':'Liechtenstein',
+  'SYR':'Syria','LBN':'Lebanon','IRQ':'Iraq','UZB':'Uzbekistan','TUR':'Turkey',
+  'COK':'Cook Islands','WSM':'Samoa','CYM':'Cayman Islands','NPL':'Nepal','REU':'Reunion',
 };
 
+// Words that are never country names — filter these from rep zones
+const REP_SKIP_WORDS = new Set([
+  'STARTING','FROM','TEE','GROUP','TIME','NAME','REPRESENTS','MORNING','AFTERNOON',
+  'SESSION','ROUND','ASIAN','TOUR','IGPL','BHARATH','CLASSIC','MAZAGAN','BEACH',
+  'RESORT','STARTING','SINGAPORE','OPEN','SENTOSA','SERAPONG','INTERNATIONAL',
+  'SERIES','JAPAN','CALEDONIAN','GOLF','CLUB','THE','AND','OF',
+]);
+
+function normaliseCode(raw) {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const up = trimmed.toUpperCase();
+  // Direct canonical code
+  if (COUNTRY_NAMES[up]) return up;
+  // Code alias map
+  if (CODE_ALIASES[up]) return CODE_ALIASES[up];
+  // Case-insensitive reverse lookup through COUNTRY_NAMES display names
+  const lower = trimmed.toLowerCase();
+  for (const [code, name] of Object.entries(COUNTRY_NAMES)) {
+    if (name.toLowerCase() === lower) return code;
+  }
+  // Case-insensitive match through CODE_ALIASES full-name keys
+  for (const [alias, code] of Object.entries(CODE_ALIASES)) {
+    if (alias.toLowerCase() === lower) return code;
+  }
+  // Last resort for short values only — don't guess for long strings
+  return up.length <= 3 ? up : null;
+}
+
+function storeEntryNat(playerName, countryRaw) {
+  if (!playerName || !countryRaw) return;
+  const raw = String(countryRaw).trim();
+  if (!raw || raw.toLowerCase() === 'nan') return;
+  // Skip pure numbers, single chars, known header words
+  if (/^\d+$/.test(raw) || raw.length < 2) return;
+  if (REP_SKIP_WORDS.has(raw.toUpperCase())) return;
+  // Try resolving the full string first
+  let code = normaliseCode(raw);
+  // If multi-word string didn't resolve, try last word only
+  // (handles "Bhati India" overflow where last word is the actual country)
+  if (raw.includes(' ') && (!code || !COUNTRY_NAMES[code])) {
+    const lastWord = raw.split(' ').filter(w => !REP_SKIP_WORDS.has(w.toUpperCase())).pop();
+    if (lastWord) {
+      const lastCode = normaliseCode(lastWord);
+      if (lastCode && COUNTRY_NAMES[lastCode]) code = lastCode;
+    }
+  }
+  // Only store if we resolved to a known country
+  if (!code || !COUNTRY_NAMES[code]) return;
+  const cleanName = playerName.replace(/\s*\(a\)\s*/i, '').trim();
+  const key = normMatch(cleanName);
+  if (!key) return;
+  entryNatMap[key] = code;
+}
 function countryName(code) {
-  return COUNTRY_NAMES[code] || code;
+  if (!code) return code;
+  // Direct lookup
+  if (COUNTRY_NAMES[code]) return COUNTRY_NAMES[code];
+  // Try normalising first (handles MAR→MOR→Morocco etc.)
+  const norm = normaliseCode(code);
+  if (norm && COUNTRY_NAMES[norm]) return COUNTRY_NAMES[norm];
+  // If it's a full name already, return as-is
+  return code;
 }
 
 function updateRankColumns() {
@@ -2746,28 +2806,30 @@ function renderRankingsTable() {
   const livNameMap = {};
   for (const p of roster) livNameMap[normMatch(p.name)] = p;
 
-  // Build full field with ranks
+  // Build full field with ranks (OWGR for pros, WAGR for amateurs)
   let allPlayers = detectedPlayers.map(name => {
     const key = normMatch(name);
     const isLiv = rosterNames.has(key);
     const livInfo = isLiv ? livNameMap[key] : null;
     const rank = getRank(name);
-    return {name, isLiv, livInfo, rank};
+    const wagrRank = !rank ? getWAGRRank(name) : null;
+    const isAmateur = /\(a\)/i.test(name);
+    return {name, isLiv, livInfo, rank, wagrRank, isAmateur};
   });
 
   // Apply Top-N filter
   const topN = parseInt(document.getElementById('topNSel').value);
   const catFilter = document.getElementById('rankFilterSel').value;
 
-  if (owgrLoaded) {
-    // Sort by rank (unranked last)
-    allPlayers.sort((a,b) => {
-      if (!a.rank && !b.rank) return a.name.localeCompare(b.name);
-      if (!a.rank) return 1; if (!b.rank) return -1;
-      return a.rank - b.rank;
-    });
-    if (topN > 0) allPlayers = allPlayers.filter(p => p.rank && p.rank <= topN);
-  }
+  // Sort: OWGR-ranked first (by rank), then WAGR-ranked amateurs, then unranked
+  allPlayers.sort((a,b) => {
+    if (a.rank && b.rank) return a.rank - b.rank;
+    if (a.rank) return -1; if (b.rank) return 1;
+    if (a.wagrRank && b.wagrRank) return a.wagrRank - b.wagrRank;
+    if (a.wagrRank) return -1; if (b.wagrRank) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  if (topN > 0) allPlayers = allPlayers.filter(p => p.rank && p.rank <= topN);
   if (catFilter === 'liv') allPlayers = allPlayers.filter(p=>p.isLiv);
   if (catFilter === 'nonliv') allPlayers = allPlayers.filter(p=>!p.isLiv);
   if (catFilter === 'champions') allPlayers = allPlayers.filter(p => getISWins(p.name));
@@ -2775,9 +2837,14 @@ function renderRankingsTable() {
   document.getElementById('rankingCount').textContent = allPlayers.length + ' players shown';
 
   document.getElementById('rankingsBody').innerHTML = allPlayers.map((p,i) => {
-    const rankTd = owgrLoaded
-      ? `<td style="width:60px">${p.rank ? `<span class="rank-cell ${rankClass(p.rank)}">${p.rank}</span>` : '<span class="rank-cell r-none">—</span>'}</td>`
-      : `<td class="rank-cell r-none" style="width:60px">${i+1}</td>`;
+    let rankTd;
+    if (p.rank) {
+      rankTd = `<td style="width:70px"><span class="rank-cell ${rankClass(p.rank)}">${p.rank}</span></td>`;
+    } else if (p.wagrRank) {
+      rankTd = `<td style="width:70px"><span class="rank-cell" style="color:#c4b5fd;font-size:10px" title="WAGR Amateur Ranking">WAGR ${p.wagrRank}</span></td>`;
+    } else {
+      rankTd = `<td style="width:70px"><span class="rank-cell r-none">—</span></td>`;
+    }
     const nameTd = p.isLiv
       ? `<td><strong>${esc(p.name)}</strong><br><span class="badge b-gold" style="font-size:10px;margin-top:3px">${esc(p.livInfo.team)}</span></td>`
       : `<td>${esc(p.name)}</td>`;
@@ -3637,10 +3704,11 @@ async function parseAsianTourFormat(pdf) {
         const rw   = rowMap[y].filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
         const name = getName(rw, xmin, xmax);
         if (!name) continue;
-        // Also capture the Represents column for this row (nationality)
+        // Capture the Represents column for this row (nationality)
         const repMin = side==='L' ? L_REP_MIN : R_REP_MIN;
         const repMax = side==='L' ? L_REP_MAX : R_REP_MAX;
-        const repWords = rw.filter(w => w.x0 >= repMin && w.x0 <= repMax && !isSkip(w.text));
+        const repWords = rw.filter(w => w.x0 >= repMin && w.x0 <= repMax && !isSkip(w.text)
+          && !/^\d+$/.test(w.text)); // exclude pure numbers like "10" from TEE headers
         if (repWords.length) {
           const rep = repWords.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').trim();
           if (rep) storeEntryNat(name, rep);
