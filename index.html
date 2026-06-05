@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LIV Golf Player Identifier</title>
+<title>Field Intel Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -318,10 +318,10 @@ tr:hover td{background:var(--surf2)}
 
 <div class="topbar">
   <div class="logo">
-    <div class="logo-badge">LIV</div>
+    <div class="logo-badge">FI</div>
     <div>
-      <div class="logo-name">Golf Player Identifier</div>
-      <div class="logo-sub">Entry List Matcher</div>
+      <div class="logo-name">Field Intel Dashboard</div>
+      <div class="logo-sub">Asian Tour · International Series</div>
     </div>
   </div>
   <button class="admin-pill" id="adminBtn" onclick="showLogin()">&#9878; Admin</button>
@@ -2909,7 +2909,7 @@ function exportXLSX() {
   }
 
   const total = detectedPlayers.length;
-  const m4 = [['LIV Golf Player Identifier — Match Report'],['Generated',new Date().toLocaleString()],[''],
+  const m4 = [['Field Intel Dashboard — Match Report'],['Generated',new Date().toLocaleString()],[''],
     ['Total Field',total],['LIV Players',matched.length],['Non-LIV',nonLiv.length],
     ['LIV %',total?Math.round(matched.length/total*100)+'%':'0%'],
     ['OWGR Loaded',owgrLoaded?'Yes':'No']];
@@ -2931,7 +2931,7 @@ function exportPDF() {
   doc.rect(0,0,210,16,'F');
   doc.setTextColor(7,8,11);
   doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text('LIV Golf Player Identifier — Match Report', 12, 11);
+  doc.text('Field Intel Dashboard — Match Report', 12, 11);
   doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','normal');
   const total = detectedPlayers.length;
   doc.text('Generated: '+new Date().toLocaleString()+'   |   Field: '+total+'   LIV: '+matched.length+'   Non-LIV: '+nonLiv.length, 12, 23);
@@ -4209,7 +4209,7 @@ function exportDataJSON() {
   const data = {
     _version: 2,
     _exported: new Date().toISOString(),
-    _info: 'LIV Golf Player Identifier — admin data. Upload to GitHub repo as data.json.',
+    _info: 'Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.',
     roster: roster,
     isWinsOverride: isWinsOverride,
     aliasMap: aliasMap,
