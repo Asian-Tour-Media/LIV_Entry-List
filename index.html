@@ -3654,12 +3654,7 @@ async function parseAsianTourFormat(pdf) {
       return false;
     }
 
-    function getName(rowWords, xmin, xmax) {
-      const nw = rowWords.filter(w => w.x0 >= xmin && w.x0 <= xmax && !isSkip(w.text));
-      if (!nw.length) return null;
-      return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').replace(/,\s*$/,'').trim();
-    }
-
+    // Build word list
     const words = [];
     for (const item of content.items) {
       const t = item.str.trim();
@@ -3674,6 +3669,24 @@ async function parseAsianTourFormat(pdf) {
       rowMap[y].push(w);
     }
     const sortedYs = Object.keys(rowMap).map(Number).sort((a,b)=>a-b);
+
+    function getName(rowWords, xmin, xmax) {
+      const nw = rowWords.filter(w => {
+        if (w.x0 < xmin || w.x0 > xmax) return false;
+        if (isSkip(w.text)) return false;
+        // Filter standalone country names/codes that bleed from the Represents column
+        const up = w.text.toUpperCase();
+        if (COUNTRY_NAMES[up]) return false;
+        if (CODE_ALIASES[up]) return false;
+        // Full single-word country names (e.g. "Thailand", "Japan", "Australia")
+        for (const name of Object.values(COUNTRY_NAMES)) {
+          if (name.toLowerCase() === w.text.toLowerCase()) return false;
+        }
+        return true;
+      });
+      if (!nw.length) return null;
+      return nw.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').replace(/,\s*$/,'').trim();
+    }
 
     function processSide(side, xmin, xmax) {
       const anchors = [];
@@ -3693,7 +3706,18 @@ async function parseAsianTourFormat(pdf) {
       }
       if (!anchors.length) return;
 
-      const startBounds = anchors.map((a,i) => i===0 ? 0 : (anchors[i-1].y + a.y)/2);
+      // For the first anchor, start from just after the header row (not from anchor y)
+      // because some PDFs place the first player row ABOVE the anchor (group num on 2nd player row)
+      // Find the header row y (last row with 'Name' and 'Represents' before first anchor)
+      let headerY = 0;
+      for (const y of sortedYs) {
+        if (y >= anchors[0].y) break;
+        const sr = rowMap[y].filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
+        if (sr.some(w => w.text === 'Name') && sr.some(w => w.text === 'Represents')) {
+          headerY = y + 1; // start collecting just after the header row
+        }
+      }
+      const startBounds = anchors.map((a,i) => i===0 ? headerY : (anchors[i-1].y + a.y)/2);
       const endBounds   = anchors.map((a,i) => i+1<anchors.length ? (a.y+anchors[i+1].y)/2 : Infinity);
 
       for (const a of anchors) {
@@ -3704,11 +3728,10 @@ async function parseAsianTourFormat(pdf) {
         const rw   = rowMap[y].filter(w => side==='L' ? w.x0 < SPLIT : w.x0 >= SPLIT);
         const name = getName(rw, xmin, xmax);
         if (!name) continue;
-        // Capture the Represents column for this row (nationality)
         const repMin = side==='L' ? L_REP_MIN : R_REP_MIN;
         const repMax = side==='L' ? L_REP_MAX : R_REP_MAX;
-        const repWords = rw.filter(w => w.x0 >= repMin && w.x0 <= repMax && !isSkip(w.text)
-          && !/^\d+$/.test(w.text)); // exclude pure numbers like "10" from TEE headers
+        const repWords = rw.filter(w => w.x0 >= repMin && w.x0 <= repMax
+          && !isSkip(w.text) && !/^\d+$/.test(w.text));
         if (repWords.length) {
           const rep = repWords.sort((a,b)=>a.x0-b.x0).map(w=>w.text).join(' ').trim();
           if (rep) storeEntryNat(name, rep);
