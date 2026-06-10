@@ -363,12 +363,6 @@
         "IS Singapore 2022"
       ]
     },
-    "ok tae-hoon": {
-      "wins": 1,
-      "tournaments": [
-        "IS Korea 2022"
-      ]
-    },
     "ollie schniederjans": {
       "wins": 1,
       "tournaments": [
@@ -428,6 +422,12 @@
       "tournaments": [
         "IS Thailand 2024"
       ]
+    },
+    "ok tae hoon": {
+      "wins": 1,
+      "tournaments": [
+        "IS Korea 2022"
+      ]
     }
   },
   "aliasMap": {
@@ -452,7 +452,7 @@
     "shaurya binu bharathan": "shaurya binu",
     "hugo trommetter": "hugo mazen trommetter",
     "nizar bourehim": "mohamed nizar bourehim",
-    "lee, chieh-po": "lee chieh-po"
+    "lee chieh po": "lee chieh-po"
   },
   "aliasTypeMap": {
     "shaurya binu bharathan": "owgr",
