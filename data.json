@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-06-09T13:21:41.295Z",
+  "_exported": "2026-06-10T11:02:04.580Z",
   "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -263,6 +263,34 @@
         "IS Macau 2025"
       ]
     },
+    "peter uihlein": {
+      "wins": 2,
+      "tournaments": [
+        "IS England 2024",
+        "IS Qatar 2024"
+      ]
+    },
+    "sarit suwannarut": {
+      "wins": 2,
+      "tournaments": [
+        "BNI Indonesian Masters 2022",
+        "Volvo China Open 2023"
+      ]
+    },
+    "scott vincent": {
+      "wins": 2,
+      "tournaments": [
+        "IS England 2022",
+        "IS Morocco 2025"
+      ]
+    },
+    "wade ormsby": {
+      "wins": 2,
+      "tournaments": [
+        "IS Thailand 2023",
+        "Jakarta International 2025"
+      ]
+    },
     "david puig": {
       "wins": 1,
       "tournaments": [
@@ -311,22 +339,16 @@
         "IS Vietnam 2023"
       ]
     },
-    "lee chieh-po": {
+    "lee": {
       "wins": 1,
       "tournaments": [
-        "IS Thailand 2024"
+        "Chieh-po"
       ]
     },
     "lucas herbert": {
       "wins": 1,
       "tournaments": [
         "IS Japan 2025"
-      ]
-    },
-    "m j maguire": {
-      "wins": 1,
-      "tournaments": [
-        "Black Mountain Championship 2024"
       ]
     },
     "miguel tabuena": {
@@ -365,37 +387,10 @@
         "Link Hong Kong Open 2024"
       ]
     },
-    "peter uihlein": {
-      "wins": 2,
-      "tournaments": [
-        "IS England 2024",
-        "IS Qatar 2024"
-      ]
-    },
-    "richard t lee": {
-      "wins": 1,
-      "tournaments": [
-        "BNI Indonesian Masters 2024"
-      ]
-    },
     "richard t. lee": {
       "wins": 1,
       "tournaments": [
         "BNI Indonesian Masters 2024"
-      ]
-    },
-    "sarit suwannarut": {
-      "wins": 2,
-      "tournaments": [
-        "BNI Indonesian Masters 2022",
-        "Volvo China Open 2023"
-      ]
-    },
-    "scott vincent": {
-      "wins": 2,
-      "tournaments": [
-        "IS England 2022",
-        "IS Morocco 2025"
       ]
     },
     "sihwan kim": {
@@ -416,23 +411,16 @@
         "Link Hong Kong Open 2025"
       ]
     },
-    "travis smyth": {
-      "wins": 1,
-      "tournaments": [
-        "IS Japan 2026"
-      ]
-    },
-    "wade ormsby": {
-      "wins": 2,
-      "tournaments": [
-        "IS Thailand 2023",
-        "Jakarta International 2025"
-      ]
-    },
     "yosuke asaji": {
       "wins": 1,
       "tournaments": [
         "Moutai Singapore Open 2025"
+      ]
+    },
+    "travis smyth": {
+      "wins": 1,
+      "tournaments": [
+        "IS Japan 2026"
       ]
     },
     "jeongwoo ham": {
