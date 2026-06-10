@@ -1725,16 +1725,38 @@ function getWAGRRank(entryName) {
     if (wagrMap[aliasTarget]) return wagrMap[aliasTarget];
   }
 
-  // Exact match
+  // Layer 1: Exact normalised match
   const clean = normMatch(stripped);
   if (wagrMap[clean]) return wagrMap[clean];
 
-  // Reversed name (surname-first formats)
+  // Layer 2: Reversed name (surname-first entry list formats)
   const toks = clean.split(' ');
   if (toks.length >= 2) {
     const rev = toks.slice(1).join(' ') + ' ' + toks[0];
     if (wagrMap[rev]) return wagrMap[rev];
   }
+
+  // Layer 3: Partial match — entry name tokens are a subset of WAGR name tokens
+  // Handles middle name omissions (e.g. "Hugo Trommetter" → "Hugo Mazen Trommetter")
+  // and prefix additions (e.g. "Nizar Bourehim" → "Mohamed Nizar Bourehim")
+  if (toks.length >= 2) {
+    const last = toks[toks.length - 1];
+    let bestRank = null, bestScore = 0;
+    for (const [wagrKey, rank] of Object.entries(wagrMap)) {
+      const wagrToks = wagrKey.split(' ');
+      // Last name must match exactly
+      if (wagrToks[wagrToks.length - 1] !== last) continue;
+      // All entry tokens must appear in the WAGR name
+      const allMatch = toks.every(t => wagrToks.includes(t));
+      if (allMatch) {
+        // Prefer the closest match (fewest extra tokens in WAGR name)
+        const score = toks.length / wagrToks.length;
+        if (score > bestScore) { bestScore = score; bestRank = rank; }
+      }
+    }
+    if (bestRank) return bestRank;
+  }
+
   return null;
 }
 
@@ -1751,11 +1773,30 @@ function getWAGRNationality(entryName) {
 
   const clean = normMatch(stripped);
   if (wagrNatMap[clean]) return wagrNatMap[clean];
+
+  // Reversed name
   const toks = clean.split(' ');
   if (toks.length >= 2) {
     const rev = toks.slice(1).join(' ') + ' ' + toks[0];
     if (wagrNatMap[rev]) return wagrNatMap[rev];
   }
+
+  // Partial match — entry name tokens are a subset of WAGR name tokens
+  if (toks.length >= 2) {
+    const last = toks[toks.length - 1];
+    let bestNat = null, bestScore = 0;
+    for (const [wagrKey, nat] of Object.entries(wagrNatMap)) {
+      const wagrToks = wagrKey.split(' ');
+      if (wagrToks[wagrToks.length - 1] !== last) continue;
+      const allMatch = toks.every(t => wagrToks.includes(t));
+      if (allMatch) {
+        const score = toks.length / wagrToks.length;
+        if (score > bestScore) { bestScore = score; bestNat = nat; }
+      }
+    }
+    if (bestNat) return bestNat;
+  }
+
   return null;
 }
 
@@ -4263,10 +4304,10 @@ async function loadDataJSON() {
         changed = true;
       }
 
-      // IS Wins override
-      if (data.isWinsOverride && Object.keys(data.isWinsOverride).length > 0) {
-        isWinsOverride = data.isWinsOverride;
-        isWinsUploaded = true;
+      // IS Wins override — always apply if key exists (empty object means all overrides removed)
+      if ('isWinsOverride' in data) {
+        isWinsOverride = data.isWinsOverride || {};
+        isWinsUploaded = Object.keys(isWinsOverride).length > 0;
         saveISWinsToStorage(isWinsOverride);
         changed = true;
       }
@@ -4279,9 +4320,9 @@ async function loadDataJSON() {
         changed = true;
       }
 
-      // Major winners override
-      if (data.majorWinnersOverride && Object.keys(data.majorWinnersOverride).length > 0) {
-        majorWinnersOverride = data.majorWinnersOverride;
+      // Major winners override — always apply if key exists
+      if ('majorWinnersOverride' in data) {
+        majorWinnersOverride = data.majorWinnersOverride || {};
         saveMajorsToStorage();
         changed = true;
       }
