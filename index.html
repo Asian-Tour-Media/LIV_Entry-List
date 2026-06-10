@@ -2575,7 +2575,11 @@ function parseCSV(text) {
 }
 
 function normMatch(s) {
-  return s.toLowerCase().trim().replace(/\s+/g,' ');
+  return s.toLowerCase().trim()
+    .replace(/,/g, '')        // strip commas — "Lee, Chieh-po" → "Lee Chieh-po"
+    .replace(/-/g, ' ')       // hyphens → spaces — "Chieh-po" → "Chieh po"
+    .replace(/\s+/g, ' ')     // collapse spaces
+    .trim();
 }
 
 function runMatch() {
