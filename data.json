@@ -1,7 +1,7 @@
 {
   "_version": 2,
   "_exported": "2026-06-10T11:02:04.580Z",
-  "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
+  "_info": "Field Intel Dashboard \u2014 admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
       "name": "Dustin Johnson",
@@ -339,12 +339,6 @@
         "IS Vietnam 2023"
       ]
     },
-    "lee": {
-      "wins": 1,
-      "tournaments": [
-        "Chieh-po"
-      ]
-    },
     "lucas herbert": {
       "wins": 1,
       "tournaments": [
@@ -428,6 +422,12 @@
       "tournaments": [
         "Singapore Open 2026"
       ]
+    },
+    "lee chieh po": {
+      "wins": 1,
+      "tournaments": [
+        "IS Thailand 2024"
+      ]
     }
   },
   "aliasMap": {
@@ -451,7 +451,8 @@
     "byeonghun an": "byeong-hun an",
     "shaurya binu bharathan": "shaurya binu",
     "hugo trommetter": "hugo mazen trommetter",
-    "nizar bourehim": "mohamed nizar bourehim"
+    "nizar bourehim": "mohamed nizar bourehim",
+    "lee, chieh-po": "lee chieh-po"
   },
   "aliasTypeMap": {
     "shaurya binu bharathan": "owgr",
