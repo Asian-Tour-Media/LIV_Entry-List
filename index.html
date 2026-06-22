@@ -4073,31 +4073,100 @@ function renderStartimes() {
   document.getElementById('startimesGroups').innerHTML = html || `<div class="empty"><p>No groups match the current filter.</p></div>`;
 }
 
-function exportStartimesXLSX() {
-  if (!startimesGroups.length) { toast('No data to export', '&#10005;'); return; }
-  const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
-  const livMap = {}; for (const p of roster) livMap[normMatch(p.name)] = p;
+function getFilteredStartimesData() {
+  const q = (document.getElementById('startimesSearch')?.value || '').toLowerCase();
+  const rosterNames = new Set(roster.map(p => normMatch(p.name)));
+  const livMap = {};
+  for (const p of roster) livMap[normMatch(p.name)] = p;
 
-  const wb = XLSX.utils.book_new();
-  const data = [['Group','Time','Tee','Player','LIV Player?','Team','OWGR','IS Wins']];
-  for (const g of startimesGroups) {
-    for (const name of g.players) {
+  // Annotate
+  const annotated = startimesGroups.map(g => ({
+    ...g,
+    players: g.players.map(name => {
       const key = normMatch(name);
       const isLiv = rosterNames.has(key);
       const livInfo = isLiv ? livMap[key] : null;
-      const isW = getISWins(name);
+      const isWins = getISWins(name);
+      return {name, isLiv, livInfo, isWins};
+    })
+  }));
+
+  // Apply same filters as renderStartimes
+  let filtered = annotated;
+  if (startimesFilter === 'liv') filtered = filtered.filter(g => g.players.some(p => p.isLiv));
+  if (startimesFilter === 'champ') filtered = filtered.filter(g => g.players.some(p => p.isWins));
+  if (startimesNatFilter !== 'all') filtered = filtered.filter(g =>
+    g.players.some(p => getNationality(p.name) === startimesNatFilter));
+  if (q) filtered = filtered.filter(g =>
+    g.group.includes(q) || g.time.includes(q) ||
+    g.players.some(p => p.name.toLowerCase().includes(q))
+  );
+
+  // Sort
+  if (startimesSort === 'asc') filtered.sort((a,b) => parseInt(a.group) - parseInt(b.group));
+  else if (startimesSort === 'desc') filtered.sort((a,b) => parseInt(b.group) - parseInt(a.group));
+  else filtered.sort((a,b) => a.time !== b.time ? a.time.localeCompare(b.time) : parseInt(a.group) - parseInt(b.group));
+
+  // If nat filter active, return flat player list (matching players only)
+  if (startimesNatFilter !== 'all') {
+    const flat = [];
+    for (const g of filtered) {
+      for (const p of g.players) {
+        if (getNationality(p.name) === startimesNatFilter) {
+          flat.push({name: p.name, group: g.group, time: g.time, tee: g.tee,
+            isLiv: p.isLiv, livInfo: p.livInfo, isWins: p.isWins});
+        }
+      }
+    }
+    flat.sort((a,b) => parseInt(a.group) - parseInt(b.group));
+    return {mode: 'flat', players: flat, natCode: startimesNatFilter};
+  }
+
+  return {mode: 'groups', groups: filtered};
+}
+
+function exportStartimesXLSX() {
+  if (!startimesGroups.length) { toast('No data to export', '&#10005;'); return; }
+  const result = getFilteredStartimesData();
+  const wb = XLSX.utils.book_new();
+
+  if (result.mode === 'flat') {
+    // Flat player list for country filter
+    const natName = countryName(result.natCode);
+    const data = [['Player','Country','Group','Time','Tee','LIV Player?','Team','OWGR','IS Wins']];
+    for (const p of result.players) {
+      const nat = getNationality(p.name);
       data.push([
-        g.group, g.time, g.tee, name,
-        isLiv ? 'Yes' : 'No',
-        isLiv ? livInfo.team : '',
-        owgrLoaded ? (getRank(name)||'—') : '—',
-        isW ? isW.wins : 0
+        p.name, nat ? countryName(nat) : '—',
+        p.group, p.time, p.tee,
+        p.isLiv ? 'Yes' : 'No',
+        p.isLiv ? p.livInfo.team : '',
+        owgrLoaded ? (getRank(p.name)||'—') : '—',
+        p.isWins ? p.isWins.wins : 0
       ]);
     }
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:26},{wch:16},{wch:7},{wch:8},{wch:7},{wch:10},{wch:22},{wch:8},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, ws, natName || 'Players');
+  } else {
+    // Group-based export
+    const data = [['Group','Time','Tee','Player','LIV Player?','Team','OWGR','IS Wins']];
+    for (const g of result.groups) {
+      for (const p of g.players) {
+        data.push([
+          g.group, g.time, g.tee, p.name,
+          p.isLiv ? 'Yes' : 'No',
+          p.isLiv ? p.livInfo.team : '',
+          owgrLoaded ? (getRank(p.name)||'—') : '—',
+          p.isWins ? p.isWins.wins : 0
+        ]);
+      }
+    }
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!cols'] = [{wch:7},{wch:8},{wch:7},{wch:26},{wch:10},{wch:22},{wch:8},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Starting_Times');
   }
-  const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{wch:7},{wch:8},{wch:7},{wch:26},{wch:10},{wch:22},{wch:8},{wch:8}];
-  XLSX.utils.book_append_sheet(wb, ws, 'Starting_Times');
+
   XLSX.writeFile(wb, 'Starting_Times.xlsx');
   toast('Excel downloaded', '&#128190;');
 }
@@ -4106,41 +4175,70 @@ function exportStartimesPDF() {
   if (!startimesGroups.length) { toast('No data to export', '&#10005;'); return; }
   const {jsPDF} = window.jspdf;
   if (!jsPDF) { toast('PDF library not ready', '&#10005;'); return; }
-  const rosterNames = new Set(roster.map(p=>normMatch(p.name)));
-  const livMap = {}; for (const p of roster) livMap[normMatch(p.name)] = p;
+  const result = getFilteredStartimesData();
 
   const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
   doc.setFillColor(201,168,76);
   doc.rect(0,0,210,16,'F');
   doc.setTextColor(7,8,11); doc.setFontSize(12); doc.setFont('helvetica','bold');
-  doc.text('Starting Times — LIV Player Highlights', 12, 11);
-  doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text('Generated: ' + new Date().toLocaleString(), 12, 23);
 
-  doc.autoTable({
-    startY: 28,
-    head:[['Group','Time','Tee','Player','LIV?','Team','OWGR','IS Wins']],
-    body: startimesGroups.flatMap(g => g.players.map(name => {
-      const key = normMatch(name);
-      const isLiv = rosterNames.has(key);
-      const livInfo = isLiv ? livMap[key] : null;
-      const isW = getISWins(name);
-      return [g.group, g.time, g.tee, name,
-        isLiv?'✓':'', isLiv?livInfo.team:'',
-        owgrLoaded?(getRank(name)||'—'):'—', isW?isW.wins:0];
-    })),
-    styles:{fontSize:7.5, cellPadding:2},
-    headStyles:{fillColor:[201,168,76], textColor:[7,8,11], fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[248,247,244]},
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.row.raw[4] === '✓') {
-        data.row.cells[3].styles.fontStyle = 'bold';
-        data.row.cells[3].styles.textColor = [180,140,40];
-      }
-    },
-    columnStyles:{0:{cellWidth:12},1:{cellWidth:13},2:{cellWidth:10},4:{cellWidth:8},6:{cellWidth:12},7:{cellWidth:12}},
-    margin:{left:10,right:10}
-  });
+  if (result.mode === 'flat') {
+    const natName = countryName(result.natCode);
+    doc.text('Starting Times — ' + natName, 12, 11);
+    doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(result.players.length + ' players · Generated: ' + new Date().toLocaleString(), 12, 23);
+
+    doc.autoTable({
+      startY: 28,
+      head:[['Player','Country','Group','Time','Tee','LIV?','Team','OWGR','IS Wins']],
+      body: result.players.map(p => {
+        const nat = getNationality(p.name);
+        return [p.name, nat ? countryName(nat) : '—', p.group, p.time, p.tee,
+          p.isLiv ? '✓' : '', p.isLiv ? p.livInfo.team : '',
+          owgrLoaded ? (getRank(p.name)||'—') : '—', p.isWins ? p.isWins.wins : 0];
+      }),
+      styles:{fontSize:7.5, cellPadding:2},
+      headStyles:{fillColor:[201,168,76], textColor:[7,8,11], fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[248,247,244]},
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.row.raw[5] === '✓') {
+          data.row.cells[0].styles.fontStyle = 'bold';
+          data.row.cells[0].styles.textColor = [180,140,40];
+        }
+      },
+      columnStyles:{2:{cellWidth:12},3:{cellWidth:13},4:{cellWidth:10},5:{cellWidth:8},7:{cellWidth:12},8:{cellWidth:12}},
+      margin:{left:10,right:10}
+    });
+  } else {
+    // Determine title suffix from active filter
+    let suffix = 'All Groups';
+    if (startimesFilter === 'liv') suffix = 'LIV Groups';
+    else if (startimesFilter === 'champ') suffix = 'IS Champion Groups';
+    doc.text('Starting Times — ' + suffix, 12, 11);
+    doc.setTextColor(80,80,80); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(result.groups.length + ' groups · Generated: ' + new Date().toLocaleString(), 12, 23);
+
+    doc.autoTable({
+      startY: 28,
+      head:[['Group','Time','Tee','Player','LIV?','Team','OWGR','IS Wins']],
+      body: result.groups.flatMap(g => g.players.map(p => {
+        return [g.group, g.time, g.tee, p.name,
+          p.isLiv ? '✓' : '', p.isLiv ? p.livInfo.team : '',
+          owgrLoaded ? (getRank(p.name)||'—') : '—', p.isWins ? p.isWins.wins : 0];
+      })),
+      styles:{fontSize:7.5, cellPadding:2},
+      headStyles:{fillColor:[201,168,76], textColor:[7,8,11], fontStyle:'bold'},
+      alternateRowStyles:{fillColor:[248,247,244]},
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.row.raw[4] === '✓') {
+          data.row.cells[3].styles.fontStyle = 'bold';
+          data.row.cells[3].styles.textColor = [180,140,40];
+        }
+      },
+      columnStyles:{0:{cellWidth:12},1:{cellWidth:13},2:{cellWidth:10},4:{cellWidth:8},6:{cellWidth:12},7:{cellWidth:12}},
+      margin:{left:10,right:10}
+    });
+  }
 
   doc.save('Starting_Times.pdf');
   toast('PDF downloaded', '&#128196;');
