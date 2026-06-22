@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-06-22T03:03:55.671Z",
+  "_exported": "2026-06-22T03:08:19.356Z",
   "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -229,10 +229,6 @@
     },
     {
       "name": "Miguel Tabuena",
-      "team": "Wild Card"
-    },
-    {
-      "name": "Travis Smyth",
       "team": "Wild Card"
     },
     {
