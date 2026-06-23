@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-06-23T08:28:37.795Z",
+  "_exported": "2026-06-23T08:43:52.216Z",
   "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -321,7 +321,7 @@
         "IS Japan 2025"
       ]
     },
-    "mj maguire": {
+    "m.j. maguire": {
       "wins": 1,
       "tournaments": [
         "Black Mountain Championship 2024"
@@ -512,7 +512,7 @@
     "lucas herbert": [
       "FB2507ISJPNLHERB"
     ],
-    "mj maguire": [
+    "m.j. maguire": [
       "FB2416BMCMMAGU"
     ],
     "miguel tabuena": [
@@ -665,9 +665,6 @@
     ],
     "micah lauren shin": [
       "FB1704RWMMSHIN"
-    ],
-    "michael maguire": [
-      "FB2416BMCMMAGU"
     ],
     "miguel carballo": [
       "FB1904IDNOCARBALLO"
