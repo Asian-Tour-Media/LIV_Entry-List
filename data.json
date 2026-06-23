@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-06-22T03:42:55.927Z",
+  "_exported": "2026-06-23T07:41:10.353Z",
   "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -283,6 +283,12 @@
         "IS Morocco 2022"
       ]
     },
+    "jeongwoo ham": {
+      "wins": 1,
+      "tournaments": [
+        "Singapore Open 2026"
+      ]
+    },
     "joaquin niemann": {
       "wins": 1,
       "tournaments": [
@@ -319,7 +325,7 @@
         "IS Japan 2025"
       ]
     },
-    "m j maguire": {
+    "mj maguire": {
       "wins": 1,
       "tournaments": [
         "Black Mountain Championship 2024"
@@ -329,12 +335,6 @@
       "wins": 1,
       "tournaments": [
         "IS Philippines 2025"
-      ]
-    },
-    "mj maguire": {
-      "wins": 1,
-      "tournaments": [
-        "Black Mountain Championship 2024"
       ]
     },
     "nitithorn thippong": {
@@ -366,12 +366,6 @@
       "tournaments": [
         "IS England 2024",
         "IS Qatar 2024"
-      ]
-    },
-    "richard t lee": {
-      "wins": 1,
-      "tournaments": [
-        "BNI Indonesian Masters 2024"
       ]
     },
     "richard t. lee": {
@@ -429,12 +423,6 @@
       "wins": 1,
       "tournaments": [
         "Moutai Singapore Open 2025"
-      ]
-    },
-    "taichi kho": {
-      "wins": 1,
-      "tournaments": [
-        "IS Morocco 2026"
       ]
     }
   },
