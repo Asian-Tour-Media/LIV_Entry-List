@@ -635,11 +635,9 @@ tr:hover td{background:var(--surf2)}
         Or drag &amp; drop your file anywhere in this box
       </div>
     </div>
-  </div>
 
-  <!-- ===== FLASHBACK CLIPS ===== -->
-  <div class="panel" id="panel-startimes">
-    <div class="card">
+    <!-- Flashback Clips — admin only -->
+    <div class="card" style="margin-top:1.5rem;border-color:rgba(96,165,250,.25)">
       <div class="card-hd">
         <div class="card-title"><span class="dot" style="background:#60a5fa"></span>Flashback Clips (FB)</div>
         <div class="owgr-pill" id="fbPill"><span class="owgr-pill-dot"></span><span id="fbPillText">No file loaded</span></div>
@@ -649,6 +647,7 @@ tr:hover td{background:var(--surf2)}
       </div>
       <div class="btns" style="margin-bottom:.75rem">
         <button class="btn btn-ghost" style="border-color:rgba(96,165,250,.4);color:#60a5fa" onclick="document.getElementById('fbInput').click()">&#128206; Upload FB Clips CSV / Excel</button>
+        <button class="btn btn-ghost" onclick="downloadFBTemplate(event)">&#8659; Download current CSV</button>
         <button class="btn btn-danger btn-sm" id="fbClearBtn" style="display:none" onclick="clearFB(event)">&#10005; Clear</button>
       </div>
       <input type="file" id="fbInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFBUpload(event)">
@@ -1680,6 +1679,31 @@ function refreshFBPill() {
     text.textContent = 'No file loaded';
     if (clearBtn) clearBtn.style.display = 'none';
   }
+}
+
+function downloadFBTemplate(e) {
+  e.preventDefault();
+  const entries = Object.entries(flashbackMap).filter(([k,v]) => v && v.length);
+  if (!entries.length) { toast('No FB clips to download', '&#10005;'); return; }
+  // Find max columns needed
+  const maxCols = entries.reduce((m,[,v]) => Math.max(m, v.length), 0);
+  // Sort by player name
+  entries.sort((a,b) => a[0].localeCompare(b[0]));
+  // Build CSV rows
+  const rows = [['Player Name', ...Array.from({length: maxCols}, (_,i) => i === 0 ? 'Flashbacks' : '')]];
+  for (const [key, ids] of entries) {
+    // Capitalise the display name from the normMatch key
+    const displayName = key.replace(/\b\w/g, c => c.toUpperCase());
+    rows.push([displayName, ...ids, ...Array(maxCols - ids.length).fill('')]);
+  }
+  const csv = rows.map(r => r.map(c => c.includes(',') ? '"'+c+'"' : c).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'FB_Clips.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('FB_Clips.csv downloaded — edit and re-upload', '&#128190;');
 }
 
 // OWGR: map of normalised name → rank number
