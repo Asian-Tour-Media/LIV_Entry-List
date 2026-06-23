@@ -637,6 +637,27 @@ tr:hover td{background:var(--surf2)}
     </div>
   </div>
 
+  <!-- ===== FLASHBACK CLIPS ===== -->
+  <div class="panel" id="panel-startimes">
+    <div class="card">
+      <div class="card-hd">
+        <div class="card-title"><span class="dot" style="background:#60a5fa"></span>Flashback Clips (FB)</div>
+        <div class="owgr-pill" id="fbPill"><span class="owgr-pill-dot"></span><span id="fbPillText">No file loaded</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--tx2);line-height:1.75;margin-bottom:1rem">
+        Upload a CSV or Excel with flashback clip IDs. Format: <strong style="color:var(--tx)">Player Name</strong> in column A, then <strong style="color:#60a5fa">FB IDs</strong> from column B onwards. One row per player. Data is saved and persists for all users.
+      </div>
+      <div class="btns" style="margin-bottom:.75rem">
+        <button class="btn btn-ghost" style="border-color:rgba(96,165,250,.4);color:#60a5fa" onclick="document.getElementById('fbInput').click()">&#128206; Upload FB Clips CSV / Excel</button>
+        <button class="btn btn-danger btn-sm" id="fbClearBtn" style="display:none" onclick="clearFB(event)">&#10005; Clear</button>
+      </div>
+      <input type="file" id="fbInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFBUpload(event)">
+      <div id="fbDropZone" style="border:2px dashed rgba(96,165,250,.3);border-radius:8px;padding:.9rem 1.25rem;font-size:12px;color:var(--tx3);text-align:center">
+        Or drag &amp; drop your FB file anywhere in this box
+      </div>
+    </div>
+  </div>
+
   <!-- ===== STARTING TIMES ===== -->
   <div class="panel" id="panel-startimes">
     <div class="card">
@@ -1555,6 +1576,112 @@ function downloadISTemplate(e) {
   toast('IS_Winners.csv downloaded — add new wins and re-upload', '&#128190;');
 }
 
+// ── FLASHBACK CLIPS — standalone upload ─────────────────────
+
+function initFBDrop() {
+  const zone = document.getElementById('fbDropZone');
+  if (!zone || zone._init) return;
+  zone._init = true;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor='#60a5fa'; zone.style.background='rgba(96,165,250,.09)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor='rgba(96,165,250,.3)'; zone.style.background=''; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.style.borderColor='rgba(96,165,250,.3)'; zone.style.background='';
+    if (e.dataTransfer.files[0]) loadFBFile(e.dataTransfer.files[0]);
+  });
+}
+
+function handleFBUpload(e) { if (e.target.files[0]) loadFBFile(e.target.files[0]); }
+
+function loadFBFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let rows;
+      if (ext === 'csv') {
+        const text = new TextDecoder().decode(e.target.result);
+        rows = parseCSV(text.replace(/^\uFEFF/, ''));
+      } else {
+        const wb = XLSX.read(e.target.result, {type:'array'});
+        rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, defval:'', raw:false});
+      }
+      parseFBRows(rows);
+    } catch(err) { toast('Could not read FB file: ' + err.message, '&#10005;'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseFBRows(rows) {
+  // Detect header: find "Player" / "Name" column and FB start column
+  let nameCol = -1, fbStartCol = -1, headerRow = -1;
+  for (let r = 0; r < Math.min(rows.length, 5); r++) {
+    const row = (rows[r]||[]).map(c => String(c||'').toLowerCase().trim());
+    for (let c = 0; c < row.length; c++) {
+      if (['player','player name','name'].includes(row[c]) && nameCol < 0) { nameCol = c; headerRow = r; }
+      if (['flashback','flashbacks','fb','clip','clips','fb id','fb ids'].includes(row[c]) && fbStartCol < 0) fbStartCol = c;
+    }
+    if (nameCol >= 0) break;
+  }
+  if (nameCol < 0) nameCol = 0;
+  if (fbStartCol < 0) fbStartCol = nameCol + 1;
+  const start = headerRow >= 0 ? headerRow + 1 : 0;
+
+  // Merge new FB data into existing flashbackMap (additive)
+  let newClips = 0, newPlayers = 0;
+  for (let r = start; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const name = String(row[nameCol]||'').trim();
+    if (!name || name.toLowerCase() === 'player' || name.toLowerCase() === 'player name') continue;
+    const key = normMatch(name);
+    let added = false;
+    for (let c = fbStartCol; c < row.length; c++) {
+      const fbId = String(row[c]||'').trim();
+      if (fbId && fbId.length > 2) {
+        if (!flashbackMap[key]) { flashbackMap[key] = []; newPlayers++; }
+        if (!flashbackMap[key].includes(fbId)) {
+          flashbackMap[key].push(fbId);
+          newClips++;
+          added = true;
+        }
+      }
+    }
+  }
+
+  saveFlashbackToStorage(flashbackMap);
+  refreshFBPill();
+  if (startimesGroups.length) renderStartimes();
+  if (matchResults.matched.length || matchResults.nonLiv.length) renderResults();
+  toast(newClips + ' FB clips loaded (' + newPlayers + ' new players) — saved', '&#10003;');
+}
+
+function clearFB(e) {
+  if (e) e.stopPropagation();
+  flashbackMap = {};
+  document.getElementById('fbInput').value = '';
+  saveFlashbackToStorage(flashbackMap);
+  refreshFBPill();
+  if (startimesGroups.length) renderStartimes();
+  toast('Flashback clips cleared');
+}
+
+function refreshFBPill() {
+  const pill = document.getElementById('fbPill');
+  const text = document.getElementById('fbPillText');
+  const clearBtn = document.getElementById('fbClearBtn');
+  if (!pill) return;
+  const count = Object.keys(flashbackMap).length;
+  const total = Object.values(flashbackMap).reduce((s,a)=>s+a.length, 0);
+  if (count > 0) {
+    pill.classList.add('on');
+    text.textContent = total + ' clips · ' + count + ' players';
+    if (clearBtn) clearBtn.style.display = '';
+  } else {
+    pill.classList.remove('on');
+    text.textContent = 'No file loaded';
+    if (clearBtn) clearBtn.style.display = 'none';
+  }
+}
+
 // OWGR: map of normalised name → rank number
 let owgrMap = {};        // key: norm(name), value: rank (integer)
 let owgrRawList = [];    // [{name, rank, ctry}] — full list for fuzzy fallback
@@ -1627,6 +1754,8 @@ function doLogin() {
     renderMajors();
     refreshISWinsPill();
     initISWinsDrop();
+    initFBDrop();
+    refreshFBPill();
     toast('Admin access granted', '&#10003;');
   } else {
     document.getElementById('pwErr').style.display = 'block';
