@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-06-23T07:41:10.353Z",
+  "_exported": "2026-06-23T07:50:31.681Z",
   "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -441,15 +441,16 @@
     "othman almulla": "othman al mulla",
     "pablo ereno": "pablo ereno perez",
     "xu andi": "andi xu",
-    "sampson zheng": "zheng sampson yunhe",
-    "bobby bai": "bai bobby zhengkai",
     "jeyi son": "jeyi son(am)",
+    "bobby bai": "bai bobby zhengkai",
+    "sampson zheng": "zheng sampson yunhe",
     "byeonghun an": "byeong-hun an",
+    "aissa el khadri": "aissa elkhadri",
     "shaurya binu bharathan": "shaurya binu",
     "hugo trommetter": "hugo mazen trommetter",
     "nizar bourehim": "mohamed nizar bourehim",
-    "lee, chieh-po": "lee chieh-po",
-    "lee chieh po": "lee chieh-po"
+    "lee chieh po": "lee chieh-po",
+    "lee, chieh-po": "lee chieh-po"
   },
   "aliasTypeMap": {
     "shaurya binu bharathan": "owgr",
