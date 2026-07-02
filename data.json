@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-06-26T04:01:04.708Z",
+  "_exported": "2026-07-02T07:09:29.196Z",
   "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -466,5 +466,330 @@
     "nizar bourehim": "wagr"
   },
   "majorWinnersOverride": {},
-  "flashbackMap": {}
+  "flashbackMap": {
+    "abraham ancer": [
+      "FB2301PIFSIAANCER"
+    ],
+    "amy yang": [
+      "FB2102HLPGAAMYY"
+    ],
+    "andrew dodt": [
+      "FB1912SWKCADODT"
+    ],
+    "andy ogletree": [
+      "FB2217ISEGYAOGLE",
+      "FB2303ISQATAOGLE",
+      "FB2312ISENGAOGLE"
+    ],
+    "ariya jutanugarn": [
+      "FB2101HLPGAAJUTA"
+    ],
+    "atthaya thitikul": [
+      "FB1812WAAPATHITI"
+    ],
+    "ben campbell": [
+      "FB2319HKGOBCAMP",
+      "FB2409ISMORBCAMP"
+    ],
+    "bernd wiesberger": [
+      "FB1301IMWIESB"
+    ],
+    "bio kim": [
+      "FB2208CMKOBIOKIM"
+    ],
+    "bjorn hellgren": [
+      "FB2523SAUOBHELL"
+    ],
+    "brad kennedy": [
+      "FB2004NZOBKENNEDY"
+    ],
+    "brendan jones": [
+      "FB2307NZOBJONES"
+    ],
+    "carlos ortiz": [
+      "FB2402ISOMNCORT",
+      "FB2505ISMACOCORTI"
+    ],
+    "chanmin jung": [
+      "FB2309CMKOCMJUNG"
+    ],
+    "daniel hillier": [
+      "FB2603NZODHILL"
+    ],
+    "david puig": [
+      "FB2316ISSGPDPUIG"
+    ],
+    "denwit boriboonsub": [
+      "FB2324ARAMDBORI",
+      "FB2325SAUODBORI"
+    ],
+    "dominic foos": [
+      "FB2516MACODFOOS"
+    ],
+    "doyeob mun": [
+      "FB2506CMKODMUN"
+    ],
+    "eugenio chacarra": [
+      "FB2313ISSABCECHAC"
+    ],
+    "gaganjeet bhullar": [
+      "FB1602SHDOGBHUL",
+      "FB2211MIOGBHUL",
+      "FB2321IDNMGBHUL"
+    ],
+    "guntaek koh": [
+      "FB2315SHDOGTKOH"
+    ],
+    "hanbyeol kim": [
+      "FB2005SHDOHBKIM"
+    ],
+    "harold varner iii": [
+      "FB2203PIFSIHVARNER"
+    ],
+    "hongtaek kim": [
+      "FB2406CMKOHTKIM"
+    ],
+    "james leow": [
+      "FB2522ARAMJLEOW"
+    ],
+    "jazz janewattananond": [
+      "FB1903IDNMJAZZJ",
+      "FB1905KKOJAZZJ",
+      "FB1910RCJAZZJ",
+      "FB1914SSOJAZZJ",
+      "FB1915THAMJAZZJ",
+      "FB2216ISMORJAZZJ"
+    ],
+    "jbe kruger": [
+      "FB1913SHDOJKRU"
+    ],
+    "jeongwoo ham": [
+      "FB2605ISSGPOJWHAM"
+    ],
+    "joaquin niemann": [
+      "FB2423PIFSIJNIEM"
+    ],
+    "john catlin": [
+      "FB1807SWKCJCAT",
+      "FB1813YTPCJCAT",
+      "FB1916THAOJCAT",
+      "FB2404ISMACOJCAT",
+      "FB2405SAUOPIFJCAT"
+    ],
+    "joohyung kim": [
+      "FB1909POIJHKIM",
+      "FB2201TSIJHKIM"
+    ],
+    "josele ballester": [
+      "FB2521ISPIFSIJBALL"
+    ],
+    "julien sale": [
+      "FB2502PHLOJSALE"
+    ],
+    "justin harding": [
+      "FB1803IOJHARD"
+    ],
+    "justin rose": [
+      "FB1702IMROSE"
+    ],
+    "kazuki higa": [
+      "FB2214SHDOKHIGA",
+      "FB2511SHDOKHIGA"
+    ],
+    "kensei hirata": [
+      "FB2412SHDOKHIRA"
+    ],
+    "khalin joshi": [
+      "FB1805POIJOSHI"
+    ],
+    "kieran vincent": [
+      "FB2308ISVMNKVINCENT"
+    ],
+    "lee chieh po": [
+      "FB2417ISTHACPLEE"
+    ],
+    "lucas herbert": [
+      "FB2507ISJPNLHERB"
+    ],
+    "malcolm kokocinski": [
+      "FB1801BBOMKOKO"
+    ],
+    "matt kuchar": [
+      "FB2003SSOMKUCHAR"
+    ],
+    "micah lauren shin": [
+      "FB1704RWMMSHIN"
+    ],
+    "m.j. maguire": [
+      "FB2416BMCMMAGU"
+    ],
+    "miguel carballo": [
+      "FB1904IDNOCARBALLO"
+    ],
+    "miguel tabuena": [
+      "FB2305DGCOMTABU",
+      "FB2517ISPHLMTAB"
+    ],
+    "min chel choi": [
+      "FB1804KKOCHOI"
+    ],
+    "min woo lee": [
+      "FB2317MACOMWLEE"
+    ],
+    "minhyuk song": [
+      "FB2606CMKOMHSONG"
+    ],
+    "minkyu kim": [
+      "FB2210KKOMKKIM",
+      "FB2407KKOMKKIM"
+    ],
+    "natipong srithong": [
+      "FB1502RWMSRITHONG"
+    ],
+    "nicklaus chiam": [
+      "FB2602PKNSSMNCHIAM"
+    ],
+    "nitihorn thippong": [
+      "FB2311IDNONTHIP"
+    ],
+    "nitithorn thippong": [
+      "FB2205DGCTHIPPONG",
+      "FB2212ISSINNTHIPPONG"
+    ],
+    "ollie schniederjans": [
+      "FB2503ISINDOSCHN"
+    ],
+    "patrick reed": [
+      "FB2420HKGOPREED"
+    ],
+    "pavit tangkamolprasert": [
+      "FB1911SBHOPAVITT"
+    ],
+    "peter uihlein": [
+      "FB2410ISENGPUIHL",
+      "FB2421ISQATPUIHL"
+    ],
+    "phachara khongwatmai": [
+      "FB2104LPCPHACHARA"
+    ],
+    "poom saksansin": [
+      "FB1802IMPOOMSAK"
+    ],
+    "rahil gangjee": [
+      "FB1806POJGRANGJEE"
+    ],
+    "rashid khan": [
+      "FB1401SAILRKHAN"
+    ],
+    "ratchanon chantananuwat tk": [
+      "FB2206TGAMCRATCTK"
+    ],
+    "rattanon wannasrichan": [
+      "FB2415MACORWANN"
+    ],
+    "richard t lee": [
+      "FB1705SHDORTLEE",
+      "FB2418IDNMRTLEE"
+    ],
+    "ryan peake": [
+      "FB2504NZORPEAK"
+    ],
+    "sadom kaewkanjana": [
+      "FB1901BBCSADOMK",
+      "FB2202SSOSADOMK",
+      "FB2508KKOSKAEW"
+    ],
+    "sanghyun park": [
+      "FB1808SHDOPARK"
+    ],
+    "sarit suwannarut": [
+      "FB2218BNIINMSARIT",
+      "FB2318VCHNOSSUWA"
+    ],
+    "scott vincent": [
+      "FB2209ISENGSVINCENT",
+      "FB2509ISMORSVINC"
+    ],
+    "sergio garcia": [
+      "FB1501HTOSGARCIA",
+      "FB1809SSOSGARCIA"
+    ],
+    "seungsu han": [
+      "FB2310KKOSSHAN"
+    ],
+    "shih chang chan": [
+      "FB2103BCPCSCCHAN",
+      "FB2215MTMSCCHAN"
+    ],
+    "shiv kapur": [
+      "FB1703POISKAPUR"
+    ],
+    "sihwan kim": [
+      "FB2204ISTHASIHWAN",
+      "FB2207TGAMSCSIHWAN"
+    ],
+    "steve lewton": [
+      "FB2411IDNOSLEWT"
+    ],
+    "suteepat prateeptienchai": [
+      "FB2510IDNOSPRAT"
+    ],
+    "suttijet kooratanapisan": [
+      "FB1701ADTKSUT59"
+    ],
+    "taehee lee": [
+      "FB1906CMKOTAHLEE"
+    ],
+    "taehoon ok": [
+      "FB2213ISKORTHOK"
+    ],
+    "taichi kho": [
+      "FB2306WCCTKHO"
+    ],
+    "takahiro hataji": [
+      "FB2403NZOTHATA"
+    ],
+    "takumi kanaya": [
+      "FB2302ISOMNTKANAYA"
+    ],
+    "tirawat kaewsiribandit": [
+      "FB1811UMATIRAWAT"
+    ],
+    "tom mckibbin": [
+      "FB2518ISHKGOTMCKI"
+    ],
+    "toshinori muto": [
+      "FB1908POGCTMUTO"
+    ],
+    "travis smyth": [
+      "FB2604ISJPNTSMYTH"
+    ],
+    "trevor simsby": [
+      "FB2001BMOTSIMSBY"
+    ],
+    "viraj madappa": [
+      "FB1810TSMVMADAPPA"
+    ],
+    "wade ormsby": [
+      "FB2002HKOWORMSBY",
+      "FB2304ISTHAWORMSBY",
+      "FB2514ISJAKICWORM"
+    ],
+    "yi keun chang": [
+      "FB1918YPTCYKCHANG"
+    ],
+    "yosuke asaji": [
+      "FB1902APDCYGASA",
+      "FB2519ISSGPOYASAJ"
+    ],
+    "young han song": [
+      "FB1601SS0YHSONG"
+    ],
+    "yuka yasuda": [
+      "FB1917WAAPYAUSUDA"
+    ],
+    "zach murray": [
+      "FB1907NZOZMURAY"
+    ]
+  }
 }
