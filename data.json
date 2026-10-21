@@ -1,6 +1,6 @@
 {
   "_version": 2,
-  "_exported": "2026-10-12T08:07:46.699Z",
+  "_exported": "2026-10-21T01:04:54.790Z",
   "_info": "Field Intel Dashboard — admin data. Upload to GitHub repo as data.json.",
   "roster": [
     {
@@ -791,6 +791,9 @@
     ],
     "zach murray": [
       "FB1907NZOZMURAY"
+    ],
+    "wang wei hsuan": [
+      "FB2608MACOWHWANG"
     ]
   }
 }
